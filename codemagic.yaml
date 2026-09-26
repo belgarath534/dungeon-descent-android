@@ -30,6 +30,8 @@ workflows:
       node: v20.14.0
       android_signing:
         - dungeon-descent-android
+      groups:
+        - google_credentials
     scripts:
       - name: Install dependencies
         script: |
@@ -45,3 +47,7 @@ workflows:
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
       - android/app/build/outputs/bundle/release/*.aab
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
+        track: alpha
