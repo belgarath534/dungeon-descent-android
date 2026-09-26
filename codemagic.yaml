@@ -20,3 +20,28 @@ workflows:
           ./gradlew assembleDebug
     artifacts:
       - android/app/build/outputs/apk/debug/*.apk
+
+  android-release-workflow:
+    name: Dungeon Descent Android Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      java: 21
+      node: v20.14.0
+      android_signing:
+        - dungeon-descent-android
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install --legacy-peer-deps
+      - name: Capacitor sync
+        script: |
+          npx cap sync android
+      - name: Build signed release APK and AAB
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease
+    artifacts:
+      - android/app/build/outputs/apk/release/*.apk
+      - android/app/build/outputs/bundle/release/*.aab
