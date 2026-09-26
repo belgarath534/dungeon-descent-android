@@ -8,6 +8,9 @@ project(':capacitor-community-admob').projectDir = new File('../node_modules/@ca
 include ':capacitor-community-keep-awake'
 project(':capacitor-community-keep-awake').projectDir = new File('../node_modules/@capacitor-community/keep-awake/android')
 
+include ':capacitor-community-speech-recognition'
+project(':capacitor-community-speech-recognition').projectDir = new File('../node_modules/@capacitor-community/speech-recognition/android')
+
 include ':capacitor-app'
 project(':capacitor-app').projectDir = new File('../node_modules/@capacitor/app/android')
 
@@ -31,9 +34,6 @@ project(':capawesome-capacitor-badge').projectDir = new File('../node_modules/@c
 
 include ':capgo-capacitor-social-login'
 project(':capgo-capacitor-social-login').projectDir = new File('../node_modules/@capgo/capacitor-social-login/android')
-
-include ':codetrix-studio-capacitor-google-auth'
-project(':codetrix-studio-capacitor-google-auth').projectDir = new File('../node_modules/@codetrix-studio/capacitor-google-auth/android')
 
 include ':capacitor-game-connect-7'
 project(':capacitor-game-connect-7').projectDir = new File('../node_modules/capacitor-game-connect-7/android')
