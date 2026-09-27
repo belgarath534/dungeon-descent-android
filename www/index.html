@@ -1875,6 +1875,8 @@ var DDStore = (function() {
     <div id="menu-birthday-badge" style="display:none;font-family:'Cinzel Decorative',cursive;font-size:0.72rem;color:#ffd700;text-align:center;margin:4px 0 6px;cursor:pointer;border:1px solid #887700;padding:8px 16px;background:#0a0800;text-shadow:0 0 10px rgba(255,215,0,0.4);" onclick="openBirthdayScreen()" role="button" tabindex="0" aria-label="Happy Birthday Dungeon Descent! Tap to celebrate">🎂 Happy Birthday, Dungeon Descent!</div>
     <!-- Trophy count display -->
     <div id="menu-trophy-count" onclick="openTrophyOverlay()" role="button" tabindex="0" aria-label="Your trophies — press to view" style="display:inline-block;font-family:Cinzel,serif;font-size:0.8rem;color:#ffdd44;text-align:center;margin:4px 0 6px;cursor:pointer;border:1px solid #cc9944;padding:8px 20px;background:rgba(10,5,0,0.85);letter-spacing:0.1em;font-weight:bold;box-shadow:0 0 12px rgba(204,153,68,0.3);">🏆 0</div>
+    <!-- Familiar badge -->
+    <div id="menu-familiar-badge" onclick="openFamiliarOverlay()" role="button" tabindex="0" aria-label="Your familiar — press to view its bond level" style="display:inline-block;font-family:Cinzel,serif;font-size:0.8rem;color:#aaddff;text-align:center;margin:4px 0 6px;cursor:pointer;border:1px solid #4488aa;padding:8px 20px;background:rgba(5,10,15,0.85);letter-spacing:0.1em;font-weight:bold;box-shadow:0 0 12px rgba(68,136,170,0.3);">✨ Lv.1</div>
     <!-- Seasonal currency display -->
     <div id="seasonal-currency-display" style="display:none;font-family:Cinzel,serif;font-size:0.68rem;color:#e0c080;text-align:center;margin:4px 0 8px;" aria-live="polite"></div>
     <p class="title-sub" id="menu-tagline">"Not all who enter are lost — most are."</p>
@@ -7250,6 +7252,30 @@ var DDStore = (function() {
   </div>
 </div>
 
+<!-- FAMILIAR OVERLAY -->
+<div id="ov-familiar" role="dialog" aria-modal="true" aria-labelledby="familiar-title" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.97);z-index:9990;flex-direction:column;align-items:center;overflow-y:auto;padding:24px 16px;">
+  <div style="max-width:460px;width:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-family:'Cinzel Decorative',cursive;font-size:0.9rem;color:#aaddff;" id="familiar-title">Your Familiar</div>
+      <button onclick="closeFamiliarOverlay()" style="background:none;border:1px solid #333;color:#888;font-family:Cinzel,serif;font-size:0.7rem;cursor:pointer;padding:6px 12px;" aria-label="Close familiar">✕ Close</button>
+    </div>
+    <div id="familiar-icon-display" style="font-size:3rem;text-align:center;margin-bottom:8px;" aria-hidden="true">✨</div>
+    <div id="familiar-name-display" style="font-family:'Cinzel Decorative',cursive;font-size:1.1rem;color:#aaddff;text-align:center;margin-bottom:4px;">Your Familiar</div>
+    <div id="familiar-level-display" style="font-family:Cinzel,serif;font-size:0.7rem;color:#888;text-align:center;margin-bottom:14px;">Bond Level 1</div>
+    <div style="width:100%;height:10px;background:#111;border:1px solid #333;margin-bottom:4px;">
+      <div id="familiar-bond-bar-fill" style="height:100%;width:0%;background:#4488aa;transition:width 0.3s;"></div>
+    </div>
+    <div style="font-family:Cinzel,serif;font-size:0.6rem;color:#555;text-align:center;margin-bottom:18px;">Bond grows from fights won, rooms searched, and dungeons cleared.</div>
+    <div style="font-family:Cinzel,serif;font-size:0.62rem;letter-spacing:0.1em;color:#888;margin-bottom:8px;">NAME YOUR FAMILIAR</div>
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <input type="text" id="familiar-name-input" maxlength="20" placeholder="Give it a name..." aria-label="Familiar name" style="flex:1;padding:8px;background:#0a0a0a;border:1px solid #4488aa;color:#aaddff;font-family:Cinzel,serif;font-size:0.7rem;box-sizing:border-box;"/>
+      <button type="button" onclick="renameFamiliar()" aria-label="Save familiar name" style="background:#0a1520;border:1px solid #4488aa;color:#aaddff;font-family:Cinzel,serif;font-size:0.65rem;cursor:pointer;padding:8px 14px;">Save</button>
+    </div>
+    <div style="font-family:Cinzel,serif;font-size:0.62rem;letter-spacing:0.1em;color:#888;margin-bottom:8px;">CHOOSE YOUR FAMILIAR</div>
+    <div id="familiar-species-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+</div>
+
 <!-- MUSIC PLAYER DUNGEON OVERLAY -->
 <div id="ov-music-player" role="dialog" aria-modal="true" aria-label="Music Player" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:9990;flex-direction:column;align-items:center;overflow-y:auto;padding:20px;">
   <div style="max-width:460px;width:100%;">
@@ -8683,6 +8709,15 @@ var AUD = {
 var _webAudioReady = false;
 function initWebAudio() {
   if (_webAudioReady || !window.AudioContext && !window.webkitAudioContext) return;
+  // Ask iOS to configure its audio session for sustained gameplay audio
+  // that coexists with other active audio (notably VoiceOver's own
+  // speech) rather than the WebView's ambient default. No-ops cleanly on
+  // web/Android since Capacitor.Plugins.AudioSession only exists on iOS.
+  try {
+    if (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.AudioSession) {
+      Capacitor.Plugins.AudioSession.configureForGameplay().catch(function(e) { console.warn('[DD] AudioSession config failed:', e); });
+    }
+  } catch(e) {}
   try {
     AUD.ctx = new (window.AudioContext || window.webkitAudioContext)();
     // Master gain — volume slider controls this — WORKS on iOS
@@ -9535,7 +9570,7 @@ function goTo(id) {
     setTimeout(function(){ initBirthdayEvent(); }, 900);
     setTimeout(function(){ initCommandCenterToggle(); }, 1000);
     setTimeout(function(){ try { checkOfflineProgress(); } catch(e){} }, 1500);
-    setTimeout(function(){ try { retroactiveAchievementRewards(); updateTrophyDisplay(); } catch(e){} }, 2000);
+    setTimeout(function(){ try { retroactiveAchievementRewards(); updateTrophyDisplay(); updateFamiliarBadge(); } catch(e){} }, 2000);
     setTimeout(function(){
       try {
         // Retroactive Spire floor achievement check
@@ -9576,7 +9611,7 @@ function goTo(id) {
       if (DS && shouldUse3DMode() && DS._roomGraph) {
         var startCell = DS._roomGraph.cells[_room3DKey(DS._gridPos.gx, DS._gridPos.gy)];
         init3DView();
-        setTimeout(function(){ play3DExitCues(startCell); }, 700);
+        play3DExitCues(startCell);
       }
     }, 100);
     setTimeout(function(){ try { initHomeButton(); } catch(e){} }, 200);
@@ -13416,17 +13451,28 @@ function _play3DBlip(pan, pitch, delaySec) {
 // slightly so each direction is distinguishable rather than one blended chord.
 function play3DExitCues(cell) {
   if (!cell || !shouldUse3DMode()) return;
-  _load3DBlipBuffer().then(function(buf) {
-    if (!buf) return;
-    var i = 0;
-    ROOM3D_DIRS.forEach(function(d) {
-      if (cell.doors[d.name]) {
-        var cfg = ROOM3D_DOOR_AUDIO[d.name];
-        _play3DBlip(cfg.pan, cfg.pitch, i * 0.16);
-        i++;
-      }
+  // Every call site here fires this right alongside a say() announcement
+  // (room entry, wall bump, floor start) — VoiceOver/TalkBack duck other
+  // app audio while actively speaking, so a one-shot blip fired at that
+  // exact moment gets buried and is never actually heard, even though the
+  // code runs fine. Echo-location doesn't have this problem (it's a
+  // deliberate, isolated action with no simultaneous speech) and neither
+  // does the Hide-and-Seek growl (a continuous loop with plenty of quiet
+  // gaps to land in) — this needs the same room-description-clearing
+  // delay familiarSpeak() already uses for the same reason.
+  setTimeout(function() {
+    _load3DBlipBuffer().then(function(buf) {
+      if (!buf) return;
+      var i = 0;
+      ROOM3D_DIRS.forEach(function(d) {
+        if (cell.doors[d.name]) {
+          var cfg = ROOM3D_DOOR_AUDIO[d.name];
+          _play3DBlip(cfg.pan, cfg.pitch, i * 0.16);
+          i++;
+        }
+      });
     });
-  });
+  }, 1800);
 }
 
 // ── ECHO-LOCATION ── a player-triggered sonar pulse: a central ping, then
@@ -13463,6 +13509,36 @@ function _echoOsc(type, freq, pan, startDelay, durSec, peakVol) {
     osc.stop(t0 + durSec + 0.05);
   } catch (e) {}
 }
+// Room-ahead sensing — the floor's whole room-type sequence is rolled
+// up front by generateFloorRooms() and walked one entry per room via
+// getNextRoomType(), regardless of which door gets taken to get there.
+// That means whichever door leads to an unvisited cell from here shares
+// the exact same next() entry, so echoing its category toward every
+// unvisited door is a real, honest read of what's coming — not a fake
+// "spooky sense" layered on top for flavor.
+var ROOM_AHEAD_CATEGORY = { cursed: 'danger', treasure: 'good', rest: 'good', merchant: 'good', secret: 'mystery' };
+function _roomAheadCategory() {
+  if (!DS._floorRoomSequence) return null;
+  var t = DS._floorRoomSequence[DS._floorRoomIdx];
+  return ROOM_AHEAD_CATEGORY[t] || null;
+}
+function _echoAheadCue(category, pan, delay) {
+  if (category === 'danger') {
+    // Low, sustained growl — something worth being cautious about
+    _echoOsc('sawtooth', 85, pan, delay, 0.55, 0.34);
+    _echoOsc('sawtooth', 110, pan, delay + 0.08, 0.45, 0.26);
+  } else if (category === 'good') {
+    // Bright ascending two-note shimmer — something worth seeking out
+    _echoOsc('sine', 1300, pan, delay, 0.18, 0.24);
+    _echoOsc('sine', 1700, pan, delay + 0.09, 0.20, 0.24);
+  } else if (category === 'mystery') {
+    // Two close, slightly detuned tones beating against each other —
+    // uncertain, worth a second look
+    _echoOsc('sine', 700, pan, delay, 0.30, 0.22);
+    _echoOsc('sine', 735, pan, delay, 0.30, 0.22);
+  }
+}
+
 function echoLocate() {
   if (!DS) return;
   if (DS.inCombat) { say('Echo-location only works while exploring, not during combat.'); return; }
@@ -13482,6 +13558,8 @@ function echoLocate() {
   _echoOsc('sine', 900, 0, 0.05, 0.12, 0.35);
   vibe && vibe(VIBE.echoPing);
 
+  var aheadCategory = _roomAheadCategory();
+  var aheadWords = { danger: [], good: [], mystery: [] };
   var openWords = [], wallWords = [];
   ROOM3D_DIRS.forEach(function(d, i) {
     var cfg = ROOM3D_DOOR_AUDIO[d.name];
@@ -13490,16 +13568,26 @@ function echoLocate() {
       openWords.push(d.word);
       // Open — a longer, softer tone that fades away, implying space beyond
       _echoOsc('sine', 420 * cfg.pitch, cfg.pan, delay, 0.32, 0.30);
+      var neighborKey = _room3DKey(cell.gx + d.dx, cell.gy + d.dy);
+      var neighbor = DS._roomGraph.cells[neighborKey];
+      if (aheadCategory && neighbor && !neighbor.visited) {
+        _echoAheadCue(aheadCategory, cfg.pan, delay + 0.36);
+        aheadWords[aheadCategory].push(d.word);
+      }
     } else {
       wallWords.push(d.word);
       // Wall — a short, sharp, higher click, implying a close reflection
       _echoOsc('square', 950 * cfg.pitch, cfg.pan, delay, 0.07, 0.22);
     }
   });
+  if (aheadCategory) vibe && vibe(VIBE[aheadCategory === 'danger' ? 'echoDanger' : 'echoPing']);
 
   var summary = openWords.length
     ? ('Echo-location: open to the ' + openWords.join(', ') + '.' + (wallWords.length ? ' Wall to the ' + wallWords.join(', ') + '.' : ''))
     : 'Echo-location: walls on every side.';
+  if (aheadWords.danger.length) summary += ' Something dangerous stirs beyond the ' + aheadWords.danger.join(', ') + '.';
+  if (aheadWords.good.length) summary += ' Something promising lies beyond the ' + aheadWords.good.join(', ') + '.';
+  if (aheadWords.mystery.length) summary += ' Something uncertain waits beyond the ' + aheadWords.mystery.join(', ') + '.';
   say(summary);
 }
 
@@ -14799,6 +14887,7 @@ function enterRoom() {
     updateHunterBar();
   }
   DS.inCombat = false; DS.defending = false; DS.searched = false;
+  familiarSpeak();
   // Guard all counters against NaN
   if (isNaN(DS.floor) || !DS.floor) DS.floor = 1;
   if (isNaN(DS.roomsOnFloor) || !DS.roomsOnFloor) DS.roomsOnFloor = 0;
@@ -15546,7 +15635,7 @@ function advanceFloor() {
     generate3DRoomGraph();
     var _newFloorStartCell = DS._roomGraph.cells[_room3DKey(0, 0)];
     if (_room3D.built) _placeCameraAt(_newFloorStartCell);
-    setTimeout(function(){ play3DExitCues(_newFloorStartCell); }, 900);
+    play3DExitCues(_newFloorStartCell);
   }
   // Track no-damage floors for achievement
   if (DS.hpAtFloorStart && DS.hp >= DS.hpAtFloorStart) {
@@ -15755,6 +15844,7 @@ function moveRoom(dir) {
 function searchRoom() {
   if (DS.searched) { say('You have already searched this room.'); setEvent('', 'You find nothing more here.'); return; }
   DS.searched = true;
+  try { gainFamiliarBond(1); } catch(e2) {}
   updateSearchBadge(false);
   sfx('sfx-search');
   sfx('sfx-select');
@@ -17112,6 +17202,7 @@ function enemyDead() {
   }
   setCombatBtns(true);
   vibe(VIBE.victory);
+  try { gainFamiliarBond(2); } catch(e2) {}
   // Clear Friday the 13th bad luck flag
   if (DS._unluckyOne) { DS._unluckyOne = false; addLog('🔲 The Unlucky One is defeated. Your luck returns.'); say('The Unlucky One is defeated. Your luck returns.'); }
   // Alchemy ingredient drop
@@ -19264,6 +19355,7 @@ function saveProgress(completed) {
     CHARS[_charIdx].completed = true;
     CHARS[_charIdx].midRunSave = null;
     trackGlobalStat('runsCompleted', 1);
+    try { gainFamiliarBond(15); } catch(e2) {}
 
     // Unlock next dungeon globally
     var dungeonOrder = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep'];
@@ -24897,6 +24989,7 @@ function showVoidReaper() {
   goTo('void-reaper');
   renderVRScreen();
   vrInitScreenChat();
+  familiarRecognizeVoidReaper();
 }
 
 function renderVRScreen() {
@@ -35262,6 +35355,9 @@ var ACHIEVEMENTS = [
   { gold:50, trophies:1, id:'ach-elite-kill', gpId:'CgkI0uiuoZcDEAIQYw',  name:'Elite Slayer',    icon:'★',  desc:'Elite enemies exist to end runs. This one ended yours instead.',             hint:'Defeat 1 elite enemy.', check:function(s){ return (s.eliteKills||0)>=1; } },
   { gold:150, trophies:3, id:'ach-elite-5', gpId:'CgkI0uiuoZcDEAIQKw',     name:'Elite Hunter',    icon:'🏹', desc:'Five elite kills. You are becoming something the dungeon respects.',                    hint:'Defeat 5 elite enemies.', check:function(s){ return (s.eliteKills||0)>=5; } },
   { gold:50, trophies:1, id:'ach-spirit-earn', gpId:'CgkI0uiuoZcDEAIQUA', name:'Spirit Bound',    icon:'✨', desc:'A spirit chose you. That does not happen by accident.',      hint:'Earn 1 spirit companion.', check:function(s){ return (s.spiritsEarned||0)>=1; } },
+  { gold:50, trophies:1, id:'ach-familiar-2', name:'First Bond',       icon:'🐦‍⬛', desc:'A small companion has decided you are worth staying for.', hint:'Reach Bond Level 2 with your familiar.', check:function(s){ return (s.familiarBondLevel||0)>=2; } },
+  { gold:150, trophies:3, id:'ach-familiar-10', name:'The Loyal',       icon:'✨', desc:'Every fight, every search, every room — it was there for all of it.', hint:'Reach Bond Level 10 with your familiar.', check:function(s){ return (s.familiarBondLevel||0)>=10; } },
+  { gold:400, trophies:7, id:'ach-familiar-20', name:'The Inseparable', icon:'🐈‍⬛', desc:'You cannot remember a run without it anymore. It cannot either.', hint:'Reach Bond Level 20 with your familiar.', check:function(s){ return (s.familiarBondLevel||0)>=20; } },
   { gold:150, trophies:3, id:'ach-ngplus', gpId:'CgkI0uiuoZcDEAIQPw',      name:'Returning',       icon:'🔄', desc:'You finished the dungeon. Then you went back. That says everything.',              hint:'Complete a New Game+ run.', check:function(s){ return (s.ngPlusComplete||0)>=1; } },
   { gold:400, trophies:7, id:'ach-ngplus3', gpId:'CgkI0uiuoZcDEAIQIQ',     name:'Unreasonable',    icon:'💀', desc:'Three times over. The dungeon gave up trying to stop you.',                   hint:'Complete New Game+ three times on the same character.', check:function(s){ return (s.ngPlusMaxCount||0)>=3; } },
   { gold:150, trophies:3, id:'ach-lore-reader', gpId:'CgkI0uiuoZcDEAIQUg', name:'Lore Keeper',     icon:'📖', desc:'Five stories read. The dungeon has more history than it admits.',                   hint:'Read 5 story fragments.', check:function(s){ return (s.storiesRead||0)>=5; } },
@@ -35582,6 +35678,249 @@ function closeTrophyOverlay() {
 function updateTrophyDisplay() {
   var el = document.getElementById('menu-trophy-count');
   if (el) el.textContent = '🏆 ' + getTrophies();
+}
+
+// ── FAMILIAR ──
+// A small companion that bonds with you across every run — persisted
+// account-wide via DDStore, like trophies, not per-character or per-run.
+// Bond grows from kills, searches, and clears; leveling up plays its own
+// distinct chime (unpanned — a personal cue, not a spatial one). Kept
+// deliberately flavor-only (occasional lines, a level-up moment) with no
+// stat effect, so it can't destabilize combat balance, and its speech is
+// low-probability and delayed so it never talks over the room's own
+// description or a combat-critical announcement.
+//
+// Deliberately stays out of the existing Companion Guide's (Mira's) lane —
+// she already reacts to death, hunter proximity, achievements, and level
+// ups (see getGuideDialogue/companionOnHunterClose/companionOnLoot). The
+// Familiar only covers things she doesn't: low sanity, recognizing Julio
+// and the Void Reaper by name specifically (not just "boss encounter"),
+// and its own bond growth.
+var FAMILIAR_SPECIES = [
+  { id: 'raven', label: 'Raven', name: 'your Raven', icon: '🐦‍⬛', unlock: 'Defeat the Void Reaper', unlocked: function(s){ return (s.voidReaperDefeated||0) >= 1; }, lines: [
+    'The raven circles once, then settles on your shoulder.',
+    'A low caw. The raven has seen this corridor before.',
+    'The raven ruffles its feathers, watching the dark ahead.',
+    'It tilts its head at you, waiting.'
+  ], deepLines: [
+    'The raven no longer waits for a command. It just knows.',
+    'It leans into you when you stop moving. Just for a moment.'
+  ] },
+  { id: 'wisp', label: 'Will-o’-Wisp', name: 'your Will-o’-Wisp', icon: '✨', unlock: 'Clear every dungeon at least once', unlocked: function(s){ return (s.abyssalComplete||0) >= 1; }, lines: [
+    'The wisp drifts closer, casting a faint blue light.',
+    'A soft glow pulses beside you — the wisp is calm here.',
+    'The wisp flickers, as if remembering something.',
+    'It bobs gently at your side, lighting nothing in particular.'
+  ], deepLines: [
+    'The wisp glows brighter now, without you asking it to.',
+    'It stopped flickering nervously a while ago. It trusts this now.'
+  ] },
+  { id: 'imp', label: 'Imp', name: 'your Imp', icon: '👺', unlock: 'Earn 100 trophies', unlocked: function(s){ return getTrophies() >= 100; }, lines: [
+    'The imp cackles quietly, poking at a crack in the wall.',
+    'It tugs at your sleeve, pointing at nothing you can see.',
+    'The imp mutters something in a language you don’t know.',
+    'It grins up at you, clearly pleased with itself.'
+  ], deepLines: [
+    'The imp’s grin has softened into something almost fond.',
+    'It still causes trouble. Just less of it, lately.'
+  ] },
+  { id: 'cat', label: 'Spectral Cat', name: 'your Spectral Cat', icon: '🐈‍⬛', unlock: 'Reach Bond Level 10 with your current familiar', unlocked: function(s){ return (s.familiarBondLevel||0) >= 10; }, lines: [
+    'The cat pads silently ahead, then stops to look back at you.',
+    'It sits, tail flicking, ears turned toward the dark.',
+    'The cat rubs against your leg without making a sound.',
+    'It watches something you can’t see. Then loses interest.'
+  ], deepLines: [
+    'The cat sleeps closer to you now than it ever used to.',
+    'It doesn’t flinch at the dark anymore. Not with you here.'
+  ] }
+];
+var FAMILIAR_TITLES = [
+  { level: 20, title: 'the Inseparable' },
+  { level: 10, title: 'the Loyal' },
+  { level: 5,  title: 'the Bonded' }
+];
+function familiarTitle(level) {
+  for (var i = 0; i < FAMILIAR_TITLES.length; i++) {
+    if (level >= FAMILIAR_TITLES[i].level) return FAMILIAR_TITLES[i].title;
+  }
+  return '';
+}
+function _familiarSpecies(f) {
+  return FAMILIAR_SPECIES.find(function(s) { return s.id === f.speciesId; }) || FAMILIAR_SPECIES[0];
+}
+function _familiarDisplayName(f) {
+  if (f.name && f.name.trim()) return f.name.trim();
+  return _familiarSpecies(f).name;
+}
+function getFamiliar() {
+  var f = _jsonParseSafe(DDStore.getItem('dd_familiar'), 'null');
+  if (!f || !f.speciesId) {
+    var species = FAMILIAR_SPECIES[Math.floor(Math.random() * FAMILIAR_SPECIES.length)];
+    f = { speciesId: species.id, startingSpeciesId: species.id, bond: 0, name: '' };
+    saveFamiliar(f);
+  }
+  if (!f.startingSpeciesId) f.startingSpeciesId = f.speciesId; // migrate familiars saved before this field existed
+  return f;
+}
+function saveFamiliar(f) { try { DDStore.setItem('dd_familiar', JSON.stringify(f)); } catch(e) { console.warn('[DD] saveFamiliar failed:', e); } }
+function familiarBondLevel(bond) { return Math.floor(bond / 30) + 1; }
+// A species is unlocked if it's the one you originally started with, or
+// its real milestone condition is met — checked live against existing
+// trophy/achievement stats, nothing new to track for the unlock itself.
+function getUnlockedFamiliarSpecies(f) {
+  var stats = getAchievementStats();
+  return FAMILIAR_SPECIES.filter(function(sp) {
+    return sp.id === f.startingSpeciesId || sp.unlocked(stats);
+  });
+}
+function selectFamiliarSpecies(speciesId) {
+  var f = getFamiliar();
+  var unlocked = getUnlockedFamiliarSpecies(f);
+  if (!unlocked.some(function(sp){ return sp.id === speciesId; })) return;
+  f.speciesId = speciesId;
+  saveFamiliar(f);
+  updateFamiliarBadge();
+  openFamiliarOverlay();
+  say(_familiarDisplayName(f) + ' is now your familiar.');
+}
+function renameFamiliar() {
+  var input = document.getElementById('familiar-name-input');
+  if (!input) return;
+  var f = getFamiliar();
+  f.name = (input.value || '').trim().slice(0, 20);
+  saveFamiliar(f);
+  updateFamiliarBadge();
+  openFamiliarOverlay();
+  say(f.name ? 'Familiar renamed to ' + f.name + '.' : 'Familiar name cleared.');
+}
+function gainFamiliarBond(amount) {
+  try {
+    var f = getFamiliar();
+    var before = familiarBondLevel(f.bond);
+    f.bond += amount;
+    var after = familiarBondLevel(f.bond);
+    saveFamiliar(f);
+    updateFamiliarBadge();
+    if (after > before) {
+      updateAchievementStat('familiarBondLevel', after);
+      _familiarLevelUp(f, after);
+    }
+  } catch(e) { console.warn('[DD] gainFamiliarBond failed:', e); }
+}
+function _familiarLevelUp(f, newLevel) {
+  var displayName = _familiarDisplayName(f);
+  var title = familiarTitle(newLevel);
+  // Three-note ascending chime, unpanned — a personal cue that follows
+  // you rather than one tied to a direction in the room
+  _echoOsc('sine', 660, 0, 0, 0.18, 0.30);
+  _echoOsc('sine', 880, 0, 0.14, 0.18, 0.30);
+  _echoOsc('sine', 1320, 0, 0.28, 0.26, 0.34);
+  vibe && vibe(VIBE.familiarBond);
+  say(displayName + ' grows closer to you. Bond level ' + newLevel + '.' + (title ? ' ' + displayName + ', ' + title + '.' : ''));
+}
+// Occasional flavor line on room enter — low probability and delayed so
+// it never competes with the room's own description for attention.
+// Deeper lines mix in once the bond is old enough to have earned them.
+function familiarSpeak() {
+  try {
+    var f = getFamiliar();
+    if (Math.random() > 0.12) return;
+    var sp = _familiarSpecies(f);
+    var pool = sp.lines.slice();
+    if (familiarBondLevel(f.bond) >= 5) pool = pool.concat(sp.deepLines);
+    var line = pool[Math.floor(Math.random() * pool.length)];
+    setTimeout(function() { say(line); }, 2200);
+  } catch(e) {}
+}
+// A comfort line at critical sanity — the one thing here Mira doesn't
+// already cover. Once per drop below the threshold, not every tick.
+var _familiarSanityCommentedThisDrop = false;
+function familiarSanityComfort() {
+  try {
+    if (_familiarSanityCommentedThisDrop) return;
+    _familiarSanityCommentedThisDrop = true;
+    var f = getFamiliar();
+    var displayName = _familiarDisplayName(f);
+    var lines = [
+      displayName + ' presses close against you. Steady. Still here.',
+      displayName + ' does not leave, even now. Not for this.',
+      'Whatever the dungeon is doing to your mind, ' + displayName + ' has not stopped watching over you.'
+    ];
+    setTimeout(function() { say(lines[Math.floor(Math.random() * lines.length)]); }, 3000);
+  } catch(e) {}
+}
+// Recognizing specific recurring characters by name — once per run each,
+// not just "a boss encounter" or "an event," which Mira already covers.
+function familiarRecognizeJulio() {
+  try {
+    var f = getFamiliar();
+    if (DS._familiarMetJulio) return;
+    DS._familiarMetJulio = true;
+    var displayName = _familiarDisplayName(f);
+    setTimeout(function() { say(displayName + ' seems unbothered by Julio. As if this has happened before.'); }, 4200);
+  } catch(e) {}
+}
+function familiarRecognizeVoidReaper() {
+  try {
+    var f = getFamiliar();
+    if (DS._familiarSawVoidReaper) return;
+    DS._familiarSawVoidReaper = true;
+    var displayName = _familiarDisplayName(f);
+    setTimeout(function() { say(displayName + ' goes very still. It knows exactly what this is.'); }, 800);
+  } catch(e) {}
+}
+function updateFamiliarBadge() {
+  var el = document.getElementById('menu-familiar-badge');
+  if (!el) return;
+  var f = getFamiliar();
+  var sp = _familiarSpecies(f);
+  el.textContent = sp.icon + ' Lv.' + familiarBondLevel(f.bond);
+}
+function _renderFamiliarSpeciesPicker(f) {
+  var listEl = document.getElementById('familiar-species-list');
+  if (!listEl) return;
+  var stats = getAchievementStats();
+  listEl.innerHTML = FAMILIAR_SPECIES.map(function(sp) {
+    var isUnlocked = sp.id === f.startingSpeciesId || sp.unlocked(stats);
+    var isActive = sp.id === f.speciesId;
+    if (!isUnlocked) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#080808;border:1px solid #222;opacity:0.5;">' +
+        '<span style="font-size:1.2rem;" aria-hidden="true">🔒</span>' +
+        '<div style="flex:1;"><div style="font-family:Cinzel,serif;font-size:0.68rem;color:#666;">' + sp.label + '</div>' +
+        '<div style="font-family:Cinzel,serif;font-size:0.6rem;color:#555;">Locked — ' + sp.unlock + '</div></div></div>';
+    }
+    return '<button type="button" onclick="selectFamiliarSpecies(\'' + sp.id + '\')" aria-label="' + (isActive ? sp.label + ', currently active' : 'Choose ' + sp.label + ' as your familiar') + '" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:' + (isActive ? '#0a1520' : '#080808') + ';border:1px solid ' + (isActive ? '#4488aa' : '#222') + ';width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;">' +
+      '<span style="font-size:1.2rem;" aria-hidden="true">' + sp.icon + '</span>' +
+      '<div style="flex:1;"><div style="font-family:Cinzel,serif;font-size:0.68rem;color:#aaddff;">' + sp.label + (isActive ? ' (active)' : '') + '</div></div></button>';
+  }).join('');
+}
+function openFamiliarOverlay() {
+  var ov = document.getElementById('ov-familiar');
+  if (!ov) return;
+  var f = getFamiliar();
+  var sp = _familiarSpecies(f);
+  var level = familiarBondLevel(f.bond);
+  var intoLevel = f.bond % 30;
+  var displayName = _familiarDisplayName(f);
+  var title = familiarTitle(level);
+  ov.style.display = 'flex';
+  var iconEl = document.getElementById('familiar-icon-display');
+  if (iconEl) iconEl.textContent = sp.icon;
+  var nameEl = document.getElementById('familiar-name-display');
+  if (nameEl) nameEl.textContent = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+  var levelEl = document.getElementById('familiar-level-display');
+  if (levelEl) levelEl.textContent = 'Bond Level ' + level + (title ? ' — ' + title : '');
+  var barEl = document.getElementById('familiar-bond-bar-fill');
+  if (barEl) barEl.style.width = Math.round((intoLevel / 30) * 100) + '%';
+  var nameInput = document.getElementById('familiar-name-input');
+  if (nameInput) nameInput.value = f.name || '';
+  _renderFamiliarSpeciesPicker(f);
+  say(displayName + '. Bond level ' + level + '. ' + intoLevel + ' of 30 toward the next level.' + (title ? ' Title: ' + title + '.' : ''));
+  setTimeout(function(){ var btn = ov.querySelector('button'); if(btn) btn.focus(); }, 100);
+}
+function closeFamiliarOverlay() {
+  var ov = document.getElementById('ov-familiar');
+  if (ov) ov.style.display = 'none';
 }
 
 function checkAchievements() {
@@ -39294,6 +39633,7 @@ var DUNGEON_EVENTS = [
     choices: [
       { label:'Talk to Julio', outcome: function(){
         incrementAchievementStat('julioFound', 1);
+        familiarRecognizeJulio();
         julioRestoresSanity();
         var jFrag = collectJulioFragment();
         if (jFrag) {
@@ -50731,8 +51071,9 @@ function updateSanityBar() {
   // JAWS milestone warnings + sounds
   if (pct === 50) say('Warning. Sanity at 50 percent. The dungeon is affecting your mind.');
   if (pct === 25) say('Danger. Sanity at 25 percent. Reality is breaking down.');
-  if (pct === 10) { sfx('sfx-sanity-warning'); say('Critical. Sanity at 10 percent. The dungeon is consuming you.'); }
+  if (pct === 10) { sfx('sfx-sanity-warning'); say('Critical. Sanity at 10 percent. The dungeon is consuming you.'); familiarSanityComfort(); }
   if (pct === 5)  { sfx('sfx-sanity-critical'); say('CRITICAL. Sanity at 5 percent. You are almost gone.'); }
+  if (pct > 25) _familiarSanityCommentedThisDrop = false;
 }
 
 function applyInsanityEffects() {
@@ -56447,6 +56788,7 @@ function afkEndRun() {
   clearInterval(AFK.timerInterval);
   AFK.interval = null;
   AFK.timerInterval = null;
+  _gameStatusHide();
 
   // Save points
   addDescentPoints(AFK.points);
@@ -56605,6 +56947,7 @@ function updateAFKUI() {
     floorEl.textContent = AFK.floor;
     floorEl.setAttribute('aria-label', 'Floor ' + AFK.floor);
   }
+  if (AFK.running) _gameStatusNotify('Endless Descent', 'Floor ' + AFK.floor + ' — ' + AFK.points.toLocaleString() + ' points');
   var hpPct = Math.max(0, Math.round((AFK.hp / AFK.maxHp) * 100));
   var hpBar = document.getElementById('afk-hp-bar');
   if (hpBar) {
@@ -63534,6 +63877,8 @@ var VIBE = {
   weaponBroken: [300],                     // equipped weapon durability hit zero
   wallBump:     [60, 30, 60],              // walked into a wall in 3D Mode
   echoPing:     [40],                      // Echo-location pulse
+  echoDanger:   [40, 60, 120],              // Echo-location senses danger in an unvisited room ahead
+  familiarBond: [60, 40, 60, 40, 120],      // Familiar bond level up
 };
 
 function toggleVibration() {
@@ -65009,6 +65354,28 @@ function updateHunterTracker() {
   }
 }
 
+// ── LIVE STATUS NOTIFICATION (Android) ──
+// The Android half of the Live Activity idea — a persistent, low-priority
+// notification for glanceable status (Hunter distance, Endless Descent
+// progress) while the game runs or is briefly backgrounded. iOS has no
+// equivalent yet (that's the actual iOS Live Activity, a separate,
+// heavier lift). Guarded by plugin existence, so it's a clean no-op on
+// iOS/web where Capacitor.Plugins.GameStatusNotification doesn't exist.
+function _gameStatusNotify(title, text) {
+  try {
+    if (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.GameStatusNotification) {
+      Capacitor.Plugins.GameStatusNotification.show({ title: title, text: text }).catch(function(){});
+    }
+  } catch(e) {}
+}
+function _gameStatusHide() {
+  try {
+    if (window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.GameStatusNotification) {
+      Capacitor.Plugins.GameStatusNotification.hide().catch(function(){});
+    }
+  } catch(e) {}
+}
+
 function updateHunterBar() {
   updateHunterTracker();
   var bar = document.getElementById('dg-hunter-bar');
@@ -65016,6 +65383,7 @@ function updateHunterBar() {
   if (!bar || !label) return;
   if (!DS.hunterMode || !DS.hunterAlive) {
     bar.parentElement.style.display = 'none';
+    _gameStatusHide();
     return;
   }
   bar.parentElement.style.display = '';
@@ -65024,8 +65392,10 @@ function updateHunterBar() {
   // Color shifts red as hunter closes in
   var color = DS.hunterDist >= 6 ? '#cc4400' : DS.hunterDist >= 3 ? '#ff6600' : '#ff0000';
   bar.style.background = color;
-  label.textContent = '🏹 Hunter: ' + DS.hunterDist + ' room' + (DS.hunterDist === 1 ? '' : 's') + ' away';
+  var hunterText = '🏹 Hunter: ' + DS.hunterDist + ' room' + (DS.hunterDist === 1 ? '' : 's') + ' away';
+  label.textContent = hunterText;
   label.style.color = color;
+  _gameStatusNotify('Dungeon Descent', hunterText);
 }
 
 function hunterCatch() {
