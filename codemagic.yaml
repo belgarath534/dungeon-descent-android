@@ -50,4 +50,4 @@ workflows:
     publishing:
       google_play:
         credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
-        track: alpha
+        track: production
