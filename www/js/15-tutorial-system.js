@@ -359,6 +359,7 @@ function showChoiceModal(title, body, options) {
 }
 
 function openSettings() {
+  updateDevToolsVisibility();
   document.getElementById('settings-screen').classList.add('open');
   // Hide notification settings on web — only relevant on native app
   var notifBtn = document.getElementById('btn-settings-notifications');
@@ -1686,7 +1687,20 @@ function manualRepairUnlocks() {
 }
 
 // ── DEV TOOLS ──
+// Developer Tools only exist for the developer's account (Leo), the same one
+// the Firestore rules' isDev() trusts; the password is the second lock.
+var DEVELOPER_UID = 'WgqZGmnPKeYIymlMkx0aAg8G2T52';
+function isDeveloperSignedIn() {
+  var u = (typeof getFirebaseUser === 'function') ? getFirebaseUser() : null;
+  return !!(u && u.uid === DEVELOPER_UID);
+}
+function updateDevToolsVisibility() {
+  var b = document.getElementById('settings-dev-btn');
+  if (b) b.style.display = (isDeveloperSignedIn() && !_devToolsLocked) ? '' : 'none';
+}
+
 function openDevToolsPrompt() {
+  if (!isDeveloperSignedIn()) { updateDevToolsVisibility(); return; }
   var ov = document.getElementById('ov-dev-password');
   if (ov) {
     ov.classList.add('open');
@@ -1734,6 +1748,7 @@ function checkDevPassword() {
 }
 
 function openDevTools() {
+  if (!isDeveloperSignedIn()) return;
   var ov = document.getElementById('ov-dev-tools');
   if (ov) {
     ov.classList.add('open');

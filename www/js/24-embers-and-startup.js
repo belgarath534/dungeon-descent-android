@@ -296,6 +296,7 @@ DDStore.whenReady().then(function() {
         window._fbAuth.onAuthStateChanged(function(user) {
           window._fbCurrentUser = user || null;
           updateAccountUI();
+          try { updateDevToolsVisibility(); } catch (eDev) {}
           // Update menu cloud status
           var menuCloud = document.getElementById('menu-cloud-status');
           if (menuCloud) {
