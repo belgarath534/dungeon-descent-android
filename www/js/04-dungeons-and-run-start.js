@@ -2022,7 +2022,7 @@ function generateFloorRooms() {
     var cumulative = 0;
     var picked = 'normal';
     for (var j = 0; j < SPECIAL_ROOMS.length; j++) {
-      cumulative += SPECIAL_ROOMS[j].chance;
+      cumulative += SPECIAL_ROOMS[j].type === 'merchant' ? eventMerchantChance(SPECIAL_ROOMS[j].chance) : SPECIAL_ROOMS[j].chance;
       if (roll < cumulative) { picked = SPECIAL_ROOMS[j].type; break; }
     }
     rooms.push(picked);
@@ -2897,6 +2897,10 @@ function enterRoom() {
             hp: Math.round(base.hp * evMult * ngMult2),
             atk: [Math.round(base.atk[0]*evMult*ngMult2), Math.round(base.atk[1]*evMult*ngMult2)],
             isSeasonal: true, seasonalLabel: activeEventBonus.label };
+          // The 11.8 events' enemies keep their abilities (dodge, lifesteal, burn…)
+          if (base.seasonal && NEW_EVENT_IDS[base.seasonal]) {
+            Object.keys(base).forEach(function(k) { if (!(k in enemy) && k !== 'hp' && k !== 'atk' && k !== 'seasonal' && k !== 'desc') enemy[k] = base[k]; });
+          }
           enemy.maxHp = enemy.hp;
           DS.enemy = enemy;
           var evMsg = activeEventBonus.label + ' — ' + enemy.name + ' materializes from the seasonal dark.';
@@ -2919,6 +2923,8 @@ function enterRoom() {
           showDgPanels(false, true, false);
           document.getElementById('dg-enemy-icon').textContent = enemy.icon;
           document.getElementById('dg-enemy-name').textContent = t(enemy.name);
+          fxReset();
+          try { eventCombatStart(false); } catch (eEv) {}
           updateEnemyBar(); updatePlayerBar();
           setCombatBtns(true); updateSkillButtons();
           return;

@@ -737,12 +737,14 @@ function openSeasonalShop() {
             : ev.seasonalCurrency === 'libertyCoins' ? LIBERTY_SHOP_ITEMS
             : ev.seasonalCurrency === 'shamrocks' ? SHAMROCK_SHOP_ITEMS
             : ev.seasonalCurrency === 'chocolate' ? CHOCOLATE_SHOP_ITEMS
+            : ev.seasonalCurrency === 'marigolds' ? OFRENDA_SHOP_ITEMS
             : HARVEST_SHOP_ITEMS;
   var shopName = ev.seasonalCurrency === 'demonCoins' ? '💀 Curse Shop'
                : ev.seasonalCurrency === 'christmasCookies' ? '🎅 Santa Shop'
                : ev.seasonalCurrency === 'libertyCoins' ? '🗽 Liberty Shop'
                : ev.seasonalCurrency === 'shamrocks' ? '☘️ Shamrock Shop'
                : ev.seasonalCurrency === 'chocolate' ? '🍫 Chocolate Shop'
+               : ev.seasonalCurrency === 'marigolds' ? '🌼 The Ofrenda'
                : '🌽 Harvest Market';
   var currency = getSeasonalCurrency(ev.seasonalCurrency);
 
@@ -1147,6 +1149,7 @@ function renderEventsScreen() {
   ];
 
   list.innerHTML = '';
+  if (typeof NEW_EVENT_CARDS !== 'undefined') events = events.concat(NEW_EVENT_CARDS);
   events.forEach(function(ev) {
     var isActive = active === ev.id;
     var daysLeft = 0;

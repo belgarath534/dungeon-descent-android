@@ -335,6 +335,7 @@ function endMultiCombat(won, fled) {
     say('All enemies defeated! You are victorious. Choose a direction to continue.');
     // Run post combat rewards same as single combat
     try { awardSeasonalCurrencyOnKill(); } catch(e2) {}
+    try { eventOnKill(null); } catch(e3) {}
     try { tryDropEnchanter(); } catch(e2) {}
     try { tryDropMaterial(DS.floor||1); } catch(e2) {}
     try { if (DS.enemy) { updateBountyProgress('kill', DS.enemy.name, DS.dungeon); if (DS.enemy.isElite) updateBountyProgress('kill_elite', DS.enemy.name, DS.dungeon); if (DS.enemy.isBoss) updateBountyProgress('kill_boss', DS.enemy.name, DS.dungeon); } } catch(e2) {}

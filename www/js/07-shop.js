@@ -96,8 +96,8 @@ function openShop() {
 }
 
 function renderShop() {
-  var nightDisc = isNightTime();
-  document.getElementById('shop-gold-display').textContent = '💰 ' + DS.gold + 'g' + (nightDisc ? '  🌙 Night Discount Active' : '');
+  var nightDisc = shopNightDiscount();
+  document.getElementById('shop-gold-display').textContent = '💰 ' + DS.gold + 'g' + (nightDisc ? (getActiveEvent() === 'nightmarket' && !isNightTime() ? '  🏮 Night Market — 25% off' : '  🌙 Night Discount Active') : '');
   document.getElementById('shop-msg').textContent = '';
   var list = document.getElementById('shop-items');
   list.innerHTML = '';
@@ -162,7 +162,7 @@ function buyItem(i) {
     say('Not enough gold. You need ' + item.cost + ' gold. You have ' + DS.gold + '.');
     return;
   }
-  var finalCost = isNightTime() ? Math.floor(item.cost * 0.75) : item.cost;
+  var finalCost = shopNightDiscount() ? Math.floor(item.cost * 0.75) : item.cost;
   if (DS.activeSpirit && DS.activeSpirit.isMarketSprite) {
     finalCost = Math.max(1, Math.round(finalCost * 0.80));
     if (finalCost < item.cost) addLog('Market Sprite negotiates — price reduced to ' + finalCost + 'g!');
@@ -175,7 +175,7 @@ function buyItem(i) {
       saveChars();
     }
   }
-  if (isNightTime() && finalCost < item.cost) addLog('🌙 Night discount applied — ' + finalCost + 'g instead of ' + item.cost + 'g.');
+  if (shopNightDiscount() && finalCost < item.cost) addLog('🌙 Night discount applied — ' + finalCost + 'g instead of ' + item.cost + 'g.');
   if (DS.gold < finalCost) {
     document.getElementById('shop-msg').textContent = 'Not enough gold. You need ' + finalCost + 'g.';
     say('Not enough gold. You need ' + finalCost + ' gold.');
@@ -342,8 +342,8 @@ function refreshShopItems() {
 
 function getShopDiscount() {
   var disc = 0;
-  // Night time: 25% off
-  if (isNightTime()) disc += 0.25;
+  // Night time (or the Night Market): 25% off
+  if (shopNightDiscount()) disc += 0.25;
   // Dwarf race: 10% shop discount
   if (DS && DS.race === 'Dwarf') disc += 0.10;
   // Market Sprite spirit: 20% discount

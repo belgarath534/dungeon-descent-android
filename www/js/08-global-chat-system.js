@@ -1574,7 +1574,7 @@ function fxPlayerDamage(dmg, isSkill) {
   var out = m === 1 ? dmg : Math.round(dmg * m);
   if (!isSkill) {
     out = forgeDamage(DS.enemy, out); subOnHit(DS.enemy, out); forgeAfterHit(DS.enemy, out);
-    if (f.ally && DS.enemy && DS.enemy.hp > 0) { var _ad = rnd(f.ally.atk[0], f.ally.atk[1]); DS.enemy.hp = Math.max(0, DS.enemy.hp - _ad); updateEnemyBar(); addLog('💀 Your risen ' + f.ally.name + ' strikes for ' + _ad + '!'); }
+    if (f.ally && DS.enemy && DS.enemy.hp > 0) { var _ad = rnd(f.ally.atk[0], f.ally.atk[1]); DS.enemy.hp = Math.max(0, DS.enemy.hp - _ad); updateEnemyBar(); addLog((f.ally.ghost ? '🌼 The ' : '💀 Your risen ') + f.ally.name + ' strikes for ' + _ad + '!'); }
   }
   return out;
 }

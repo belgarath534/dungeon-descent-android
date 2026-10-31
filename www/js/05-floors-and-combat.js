@@ -382,6 +382,8 @@ function showDgPanels(nav, combat, inv) {
   if (examBtn) examBtn.style.display = combat ? '' : 'none';
   var eagleBtn2 = document.getElementById('cbtn-eagles-cry');
   if (eagleBtn2) eagleBtn2.style.display = (combat && getActiveEvent() === 'july4') ? '' : 'none';
+  var gritoBtn2 = document.getElementById('cbtn-grito');
+  if (gritoBtn2) gritoBtn2.style.display = (combat && getActiveEvent() === 'mexico') ? '' : 'none';
   // 3D Mode visual only makes sense during exploration — pause the render
   // loop the rest of the time so it's not burning battery behind combat/inv.
   var view3d = document.getElementById('dg-3d-view');
@@ -530,6 +532,7 @@ function startCombat(isBoss) {
   // Bloodfire Potion and Glacier Tonic: "the next enemy" burns / is stunned (set, never read)
   if (DS._potionBurnNext) { DS._potionBurnNext = false; fxGet().dot = 8; fxGet().dotTurns = 3; addLog('🔥 Bloodfire! The enemy burns for 8 damage a turn for 3 turns.'); }
   if (DS._potionStunNext) { DS._potionStunNext = false; fxGet().stun = Math.max(fxGet().stun, 1); addLog('❄️ Glacier Tonic! The enemy is frozen for a turn.'); }
+  try { eventCombatStart(isBoss); } catch (eEv) {}
   // Corruption 50% — one fight in ten, the Corrupted Hunter comes instead (the flag was never read)
   if (!isBoss && DS._corruptedHunterActive && DS.enemy && !DS.enemy.isBoss && !DS.enemy._corruptedHunter && (DS.floor || 1) >= 2 && Math.random() < 0.10) {
     DS.enemy.name = 'Corrupted Hunter'; DS.enemy.icon = '🏹';
@@ -769,6 +772,8 @@ function setCombatBtns(on) {
   // Show Eagle's Cry only during July 4th event
   var eagleBtn = document.getElementById('cbtn-eagles-cry');
   if (eagleBtn) eagleBtn.style.display = getActiveEvent() === 'july4' ? '' : 'none';
+  var gritoBtn = document.getElementById('cbtn-grito');
+  if (gritoBtn) gritoBtn.style.display = getActiveEvent() === 'mexico' ? '' : 'none';
   // Sync soul traps + keepable items from global inventory at combat start
   try {
     var _kt2 = ['soul-trap','enchanter','music-player','skill-orb'];
@@ -2170,6 +2175,7 @@ function enemyDead() {
     }
     // Award seasonal currency
     awardSeasonalCurrencyOnKill();
+    try { eventOnKill(e); } catch (eEv) {}
     // Try drop enchanter (2.5% chance)
     tryDropEnchanter();
   // Check if this was the DDDI boss

@@ -103,7 +103,7 @@
 </script>
 <title>Dungeon Descent</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/game.css?v=11.7.3">
+<link rel="stylesheet" href="css/game.css?v=11.8">
 <!-- FIREBASE SDK -->
 <!-- Capacitor -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
@@ -178,7 +178,7 @@
 })();
 </script>
 
-<script src="js/01-storage.js?v=11.7.3"></script>
+<script src="js/01-storage.js?v=11.8"></script>
 
 </head>
 <body>
@@ -232,7 +232,7 @@
     <!-- Title -->
     <div class="loading-title" data-i18n="game-title" style="font-size:2.4rem;line-height:1.1;margin-bottom:6px;">Dungeon<br>Descent</div>
     <div class="loading-sub" data-i18n="game-subtitle" style="margin-bottom:6px;">Into the dark. Again.</div>
-    <div style="font-family:Cinzel,serif;font-size:0.58rem;color:#333;letter-spacing:0.2em;margin-bottom:40px;" aria-hidden="true" id="loading-version-tag">v11.7.3</div>
+    <div style="font-family:Cinzel,serif;font-size:0.58rem;color:#333;letter-spacing:0.2em;margin-bottom:40px;" aria-hidden="true" id="loading-version-tag">v11.8</div>
 
     <!-- Loading bar -->
     <div class="loading-bar-wrap">
@@ -411,7 +411,7 @@
         <span data-i18n="btn-quit">🕯 Quit</span>
       </button>
     </nav>
-    <p class="version-tag" id="menu-version-tag" aria-label="Version 11 point 7 point 3, Release">v11.7.3 · Release</p>
+    <p class="version-tag" id="menu-version-tag" aria-label="Version 11 point 8, Release">v11.8 · Release</p>
     <p id="menu-online-count" style="font-family:Cinzel,serif;font-size:0.55rem;color:#444;margin-top:4px;letter-spacing:0.1em;" aria-live="polite" aria-label="Players currently online"></p>
     <p style="font-family:Cinzel,serif;font-size:0.7rem;color:#ffdd44;margin-top:6px;" aria-label="Your global gold" aria-live="polite"><span data-i18n="lbl-gold">💰 </span><span class="global-gold-display">0</span></p>
     <p style="font-family:Cinzel,serif;font-size:0.7rem;color:#88ddff;margin-top:2px;" aria-label="Your diamonds" aria-live="polite">💎 <span class="global-diamond-display">0</span></p>
@@ -1623,6 +1623,7 @@
         <button type="button" class="dg-combat-btn" id="cbtn-purge" onclick="doFight('purge')" aria-label="Purge shadow corruption. Costs 4 SP." style="display:none;border-color:#9966cc;color:#cc88ff;">✨ Purge</button>
         <button type="button" class="dg-combat-btn" id="cbtn-examine" onclick="examineEnemy()" aria-label="Examine enemy to learn their weakness and abilities" style="border-color:#4444aa;color:#8888ff;">🔍 Examine</button>
         <button type="button" class="dg-combat-btn" id="cbtn-eagles-cry" onclick="activateEaglesCry()" aria-label="Eagle's Cry — Fourth of July skill, reduces enemy attack 30% for 3 turns" style="display:none;border-color:#cc4444;color:#ff6644;">🦅 Eagle's Cry</button>
+        <button type="button" class="dg-combat-btn" id="cbtn-grito" onclick="gritoCry()" aria-label="¡El Grito! — Mexican Independence battle cry, plus 30 percent attack for 3 turns, once a fight" style="display:none;border-color:#2e8b57;color:#ffffff;">🇲🇽 ¡El Grito!</button>
         <button type="button" class="dg-combat-btn" id="cbtn-soul-trap" onclick="doFight('soul-trap')" aria-label="Use Soul Trap to capture this enemy as a minion" style="display:none;border-color:#44aa44;color:#44ff88;">🪤 Soul Trap</button>
         <button type="button" class="dg-combat-btn" id="cbtn-gun" onclick="gunAction()" aria-label="Charge gun" style="display:none;border-color:#cc8800;color:#ffaa00;">🔫 Charge Gun</button>
         <button type="button" class="dg-combat-btn" onclick="toggleInv()" aria-label="Open inventory during combat">🎒 Inventory</button>
@@ -1976,8 +1977,24 @@
       <button class="back-btn" onclick="goTo('menu')" aria-label="Back to main menu">← Menu</button>
       <h2 class="screen-title">What's New</h2>
     </div>
-    <div class="version-block latest" tabindex="0" aria-label="Version 11.7.3">
-      <div class="version-num">v11.7.3 — Latest</div>
+    <div class="version-block latest" tabindex="0" aria-label="Version 11.8">
+      <div class="version-num">v11.8 — Latest</div>
+      <div class="version-date">The Festival Update</div>
+      <ul class="version-changes">
+        <li>🎉 Nine new events come to the dungeon, each with its own enemies, bonuses and twist. Check the Events screen to see when each one is on.</li>
+        <li>🌼 Día de los Muertos (November 1–2) — a fallen hero from your Graveyard returns as a ghost and fights beside you. Earn Marigolds and spend them at 🌼 The Ofrenda.</li>
+        <li>🇲🇽 Independencia de México (September 15–16) — the ¡El Grito! battle cry gives you +30% attack for 3 turns, once a fight.</li>
+        <li>🎆 New Year (December 31–January 1) — double XP into the new year.</li>
+        <li>🐉 Lunar New Year — three days that move with the moon. Enemies sometimes leave a 🧧 red envelope with gold or a Mystery Coin.</li>
+        <li>🃏 Chaos Day (April 1) — every fight rolls a random twist.</li>
+        <li>🌑 The Longest Night (December 21) — it is night all day, with every night bonus on.</li>
+        <li>🌘 The Eclipse — one evening a month the sun goes dark, the same time for every player. Double gold, and much tougher enemies.</li>
+        <li>🏮 Night Market — the first weekend of every month, the merchant comes far more often and everything is 25% off.</li>
+        <li>🐾 Monster Migration — two days a month, enemies from the other dungeons wander into yours with all their abilities.</li>
+      </ul>
+    </div>
+    <div class="version-block" tabindex="0" aria-label="Version 11.7.3">
+      <div class="version-num">v11.7.3</div>
       <div class="version-date">The Hundred Fixes Update</div>
       <ul class="version-changes">
         <li>🍎 Dungeon Descent has been rebuilt from the ground up as a native iPhone app in Swift. Rebuilding every system found over 100 bugs — and every one of them is fixed here too.</li>
@@ -7199,29 +7216,29 @@
   </div>
 </div>
 
-<script src="js/02-core-data-and-utilities.js?v=11.7.3"></script>
-<script src="js/03-character-creation.js?v=11.7.3"></script>
-<script src="js/04-dungeons-and-run-start.js?v=11.7.3"></script>
-<script src="js/05-floors-and-combat.js?v=11.7.3"></script>
-<script src="js/06-shadow-world-and-inventory.js?v=11.7.3"></script>
-<script src="js/07-shop.js?v=11.7.3"></script>
-<script src="js/08-global-chat-system.js?v=11.7.3"></script>
-<script src="js/09-multi-stage-boss.js?v=11.7.3"></script>
-<script src="js/10-tournament-system.js?v=11.7.3"></script>
-<script src="js/11-translations-pt-br.js?v=11.7.3"></script>
-<script src="js/12-translate-function.js?v=11.7.3"></script>
-<script src="js/13-mystery-coin-shop.js?v=11.7.3"></script>
-<script src="js/14-daily-challenge-and-events.js?v=11.7.3"></script>
-<script src="js/15-tutorial-system.js?v=11.7.3"></script>
-<script src="js/16-pvp-multiplayer.js?v=11.7.3"></script>
-<script src="js/17-menu-event-banner.js?v=11.7.3"></script>
-<script src="js/18-hunting-grounds.js?v=11.7.3"></script>
-<script src="js/19-death-cinematic-system.js?v=11.7.3"></script>
-<script src="js/20-restored-session-systems.js?v=11.7.3"></script>
-<script src="js/21-command-center.js?v=11.7.3"></script>
-<script src="js/22-endless-descent-afk-mode.js?v=11.7.3"></script>
-<script src="js/23-multi-enemy-combat-system.js?v=11.7.3"></script>
-<script src="js/24-embers-and-startup.js?v=11.7.3"></script>
+<script src="js/02-core-data-and-utilities.js?v=11.8"></script>
+<script src="js/03-character-creation.js?v=11.8"></script>
+<script src="js/04-dungeons-and-run-start.js?v=11.8"></script>
+<script src="js/05-floors-and-combat.js?v=11.8"></script>
+<script src="js/06-shadow-world-and-inventory.js?v=11.8"></script>
+<script src="js/07-shop.js?v=11.8"></script>
+<script src="js/08-global-chat-system.js?v=11.8"></script>
+<script src="js/09-multi-stage-boss.js?v=11.8"></script>
+<script src="js/10-tournament-system.js?v=11.8"></script>
+<script src="js/11-translations-pt-br.js?v=11.8"></script>
+<script src="js/12-translate-function.js?v=11.8"></script>
+<script src="js/13-mystery-coin-shop.js?v=11.8"></script>
+<script src="js/14-daily-challenge-and-events.js?v=11.8"></script>
+<script src="js/15-tutorial-system.js?v=11.8"></script>
+<script src="js/16-pvp-multiplayer.js?v=11.8"></script>
+<script src="js/17-menu-event-banner.js?v=11.8"></script>
+<script src="js/18-hunting-grounds.js?v=11.8"></script>
+<script src="js/19-death-cinematic-system.js?v=11.8"></script>
+<script src="js/20-restored-session-systems.js?v=11.8"></script>
+<script src="js/21-command-center.js?v=11.8"></script>
+<script src="js/22-endless-descent-afk-mode.js?v=11.8"></script>
+<script src="js/23-multi-enemy-combat-system.js?v=11.8"></script>
+<script src="js/24-embers-and-startup.js?v=11.8"></script>
 
 <!-- AFK SKILL PICK OVERLAY -->
 <div id="ov-afk-skill" role="dialog" aria-modal="true" aria-label="Choose skills from AFK level up" style="display:none;position:fixed;inset:0;background:#050505ee;z-index:985;flex-direction:column;align-items:center;justify-content:center;padding:20px;">
@@ -7607,7 +7624,8 @@
 </div>
 
 
-<script src="js/25-notification-preferences.js?v=11.7.3"></script>
+<script src="js/25-notification-preferences.js?v=11.8"></script>
+<script src="js/26-events-11-8.js?v=11.8"></script>
 
 
 
