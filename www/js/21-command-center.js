@@ -2248,6 +2248,7 @@ function renderHomeSkills() {
     cdDiv.textContent = '⏳ Cooldown — ' + minsLeft + ' min remaining.';
     container.appendChild(cdDiv);
   }
+  try { renderHomeSkillOrbs(container, ch); } catch (eOrb) {}
 }
 
 function homeUpgradeSkill(skillId, skillName, cost, currentLevel) {
@@ -2286,7 +2287,42 @@ function homeCreateSkillOrbs() {
   });
   DDStore.setItem('dd_skill_orbs', JSON.stringify(orbs));
   h.skillLevels = {}; h.upgradeCount = 0; saveHome(h);
-  if (orbs.length > 0) addLog('✨ Skill Orbs created from ' + ch.name + '\'s upgraded skills. Check your global inventory.');
+  if (orbs.length > 0) addLog('✨ Skill Orbs created from ' + ch.name + '\'s upgraded skills. A character of the same class can use them at Home, under Skill Upgrade.');
+}
+
+// Skill Orbs at Home (they were saved where no screen ever looked)
+function renderHomeSkillOrbs(container, ch) {
+  var orbs = _jsonParseSafe(DDStore.getItem('dd_skill_orbs'), '[]').filter(function(o){ return o.className === ch.cls; });
+  if (!orbs.length) return;
+  var head = document.createElement('div');
+  head.style.cssText = 'font-family:Cinzel,serif;font-size:0.68rem;color:#aa88ff;margin-top:10px;';
+  head.textContent = '✨ Skill Orbs for ' + ch.cls;
+  head.setAttribute('role', 'heading'); head.setAttribute('aria-level', '3');
+  container.appendChild(head);
+  orbs.forEach(function(o) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.style.cssText = 'padding:8px;background:#0a0814;border:1px solid #443366;color:#ccbbff;font-family:Cinzel,serif;font-size:0.62rem;text-align:left;';
+    b.textContent = '✨ ' + o.skillName + ' — level ' + o.level + ' (from ' + o.fromChar + ')';
+    b.setAttribute('aria-label', 'Use Skill Orb: ' + o.skillName + ', level ' + o.level + ', from ' + o.fromChar);
+    b.onclick = function() { useHomeSkillOrb(o); };
+    container.appendChild(b);
+  });
+}
+function useHomeSkillOrb(o) {
+  var ch = _charIdx !== null ? CHARS[_charIdx] : null;
+  if (!ch || o.className !== ch.cls) { say('This orb is for a ' + o.className + '.'); return; }
+  var h = getHomeSave();
+  if (!h.skillLevels) h.skillLevels = {};
+  h.skillLevels[o.id] = Math.max(h.skillLevels[o.id] || 1, o.level);
+  saveHome(h);
+  var orbs = _jsonParseSafe(DDStore.getItem('dd_skill_orbs'), '[]');
+  var gone = false;
+  orbs = orbs.filter(function(x){ if (!gone && x.id === o.id && x.fromChar === o.fromChar && x.created === o.created) { gone = true; return false; } return true; });
+  DDStore.setItem('dd_skill_orbs', JSON.stringify(orbs));
+  sfx('sfx-unlock');
+  say('Skill Orb used. ' + o.skillName + ' is now level ' + h.skillLevels[o.id] + '.');
+  renderHomeSkills();
 }
 
 function initHomeButton() {

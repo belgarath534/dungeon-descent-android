@@ -998,6 +998,15 @@ function renderTitlePicker() {
   });
 }
 
+// Seasonal titles went onto the selected character, which from the menu was
+// none; they are owned titles like the others, and become your title.
+function grantSeasonalTitle(tag) {
+  var owned = _jsonParseSafe(DDStore.getItem('dd_owned_titles'), '["Wanderer"]');
+  if (owned.indexOf(tag) === -1) owned.push(tag);
+  DDStore.setItem('dd_owned_titles', JSON.stringify(owned));
+  try { selectTitle(tag); } catch (e) { DDStore.setItem('dd_title', tag); }
+}
+
 function selectTitle(tag) {
   DDStore.setItem('dd_title', tag);
   var fullName = getFullDisplayName();

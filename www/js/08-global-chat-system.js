@@ -1420,11 +1420,18 @@ var SKILL_SPECS = {
 //    ran the same code, whatever their own description said.
 // DS._fx holds this fight's timed effects and is cleared when a fight starts or ends.
 function fxReset() {
+  // The Shapeshifter's Mask copies an ability for this combat only (it lasted forever)
+  DS._maskImmune = false; DS._maskCorrupt = false; DS._maskRevive = false; DS._maskGrow = false; DS._maskGrowBonus = 0;
+  DS._maskDodge = false; DS._maskWeb = false; DS._maskReflect = false; DS._maskLurker = false; DS._maskMimic = false;
+  DS._maskCommand = false; DS._maskSpirit = false; DS._maskFear = false;
   var f = DS._fx;
   if (f) {
     // Undo stat changes that only last for the fight.
     DS.atkBonus -= (f.fightAtk || 0) + (f.buffTurns > 0 ? (f.buffAtk || 0) : 0);
     DS.defBonus -= (f.fightDef || 0) + (f.buffTurns > 0 ? (f.buffDef || 0) : 0);
+    if (f.fightCrit) DS.critBonus = (DS.critBonus || 0) - f.fightCrit;
+    if (f.fightFlee) DS.fleeBonus = (DS.fleeBonus || 0) - f.fightFlee;
+    if (f.fightLuck) DS.luckBonus = (DS.luckBonus || 0) - f.fightLuck;
   }
   DS._fx = { stun: 0, dodge: 0, soften: 1, softenHits: 0, reduce: 0, reduceTurns: 0,
     empower: 1, empowerCount: 0, vuln: 0, vulnTurns: 0, dot: 0, dotTurns: 0,
@@ -1540,6 +1547,8 @@ function subDodges() {
 function fxPlayerDamage(dmg, isSkill) {
   if (!isSkill && DS._abyssalLostTurn) { DS._abyssalLostTurn = false; return 0; }
   if (!(dmg > 0)) return dmg;
+  // Mask: corruption on hit — your next attack deals 10 more for each stack
+  if (!isSkill && DS._maskCorrupt) { var _mc = 10 * (DS._maskCorruptStacks || 1); DS._maskCorrupt = false; dmg += _mc; addLog('🎭 Mask: corruption bursts out — +' + _mc + ' damage!'); }
   var f = fxGet();
   var m = 1;
   if (f.empowerCount > 0) { m *= f.empower; f.empowerCount--; }
@@ -1623,6 +1632,18 @@ function fxEnemyTurn(e, fromAttack) {
   }
   // Spirit Caller — the spirit heals 8 HP each turn of a fight
   if (DS._spiritCaller && DS.hp > 0 && DS.hp < DS.maxHp) { DS.hp = Math.min(DS.maxHp, DS.hp + 8); updatePlayerBar(); addLog('🌀 Your spirit heals you for 8 HP.'); }
+  // The boss timer's minion strikes too
+  if (f.bossMinion && DS.hp > 0) {
+    var _bm = rnd(f.bossMinion.atk[0], f.bossMinion.atk[1]);
+    DS.hp = Math.max(1, DS.hp - _bm); updatePlayerBar();
+    addLog('👹 The ' + f.bossMinion.name + ' strikes for ' + _bm + '!');
+  }
+  // Mask: Void Web — 8 damage every turn of the fight (it was never woven)
+  if (DS._maskWeb) {
+    e.hp = Math.max(0, e.hp - 8); updateEnemyBar();
+    addLog('🕸️ Your void web deals 8 damage to ' + e.name + '.');
+    if (e.hp <= 0) return 'dead';
+  }
   if (f.soulDrain > 0) {
     f.soulDrain--;
     var steal = Math.min(e.hp, Math.max(8, Math.round(e.maxHp * 0.12)));

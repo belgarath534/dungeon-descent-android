@@ -901,7 +901,7 @@ function useItem(i) {
     var ability = null;
     var abilityMsg = '';
     if (e.immuneFirstHit)  { DS._maskImmune = true;  ability = 'immunity to first hit'; abilityMsg = 'You are now immune to the next hit this combat.'; }
-    else if (e.corruptOnHit) { DS._maskCorrupt = true; ability = 'corruption on hit'; abilityMsg = 'Your next attack will add ' + e.corruptOnHit + ' corruption to the enemy.'; }
+    else if (e.corruptOnHit) { DS._maskCorrupt = true; DS._maskCorruptStacks = e.corruptOnHit; ability = 'corruption on hit'; abilityMsg = 'Your next attack deals ' + (10 * e.corruptOnHit) + ' extra damage.'; }
     else if (e.fearHowl)   { DS._maskFear = true;    ability = 'fear howl'; abilityMsg = 'The enemy is filled with fear — their damage is reduced 20% for 3 turns.'; DS.enemyFearTurns = 3; }
     else if (e.twiceDead)  { DS._maskRevive = true;  ability = 'second life'; abilityMsg = 'You will return at 50% HP if you die this combat. Once.'; }
     else if (e.grows)      { DS._maskGrow = true;    ability = 'growing power'; abilityMsg = 'You gain +4 ATK every turn for the rest of this combat.'; }
@@ -1557,7 +1557,7 @@ function saveProgress(completed) {
       lives: DS.lives,
       kills: DS.kills,
       // Without this fight's own bonuses, which end with the fight
-      atkBonus: DS.atkBonus - fxFightBonus('atk'), defBonus: DS.defBonus - fxFightBonus('def'), critBonus: DS.critBonus||0, luckBonus: DS.luckBonus||0, fleeBonus: DS.fleeBonus||0, _subclass: DS._subclass||null, _subclassName: DS._subclassName||null, _subclassIcon: DS._subclassIcon||null,
+      atkBonus: DS.atkBonus - fxFightBonus('atk'), defBonus: DS.defBonus - fxFightBonus('def'), critBonus: (DS.critBonus||0) - ((DS._fx && DS._fx.fightCrit) || 0), luckBonus: (DS.luckBonus||0) - ((DS._fx && DS._fx.fightLuck) || 0), fleeBonus: (DS.fleeBonus||0) - ((DS._fx && DS._fx.fightFlee) || 0), _subclass: DS._subclass||null, _subclassName: DS._subclassName||null, _subclassIcon: DS._subclassIcon||null,
       inventory: DS.inventory,
       unlockedSkills: DS.unlockedSkills || [],
       skillPool: DS.skillPool || [],
@@ -1589,6 +1589,7 @@ function saveProgress(completed) {
       _weatherIds: { d: _dungeonWeather ? _dungeonWeather.id : null, a: _abyssalWeather ? _abyssalWeather.id : null, h: _hollowWeather ? _hollowWeather.id : null },
       _forestCorruption: (typeof _corruption !== 'undefined' && DS.dungeon === 'The Whispering Forest') ? _corruption : 0,
       _xpBoost: DS._xpBoost || null, _spiritBoost: DS._spiritBoost || 0, _sparklerAtk: !!DS._sparklerAtk,
+      _bossRelicAtkBonus: DS._bossRelicAtkBonus || 0, _crownShieldActive: !!DS._crownShieldActive, _crownShieldUsed: !!DS._crownShieldUsed,
       _warlordAtk: DS._warlordAtk || 0, _tempAtk: DS._tempAtk || null, _tempDef: DS._tempDef || null,
       _skillMastery: DS._skillMastery || 0, _allMastery: DS._allMastery || 0, _halfCostSkills: !!DS._halfCostSkills,
       _debuffImmune: !!DS._debuffImmune, _onceSkills: DS._onceSkills || null, _bombReady: !!DS._bombReady, _beast: DS._beast || 0,
@@ -1668,6 +1669,7 @@ function restoreMidRun(ch) {
   }
   if (DS._forestCorruptionSaved && typeof _corruption !== 'undefined') { _corruption = DS._forestCorruptionSaved; }
   DS._xpBoost = s._xpBoost || null; DS._spiritBoost = s._spiritBoost || 0; DS._sparklerAtk = !!s._sparklerAtk;
+  DS._bossRelicAtkBonus = s._bossRelicAtkBonus || 0; DS._crownShieldActive = !!s._crownShieldActive; DS._crownShieldUsed = !!s._crownShieldUsed;
   DS._warlordAtk = s._warlordAtk || 0; DS._tempAtk = s._tempAtk || null; DS._tempDef = s._tempDef || null;
   DS._skillMastery = s._skillMastery || 0; DS._allMastery = s._allMastery || 0; DS._halfCostSkills = !!s._halfCostSkills;
   DS._debuffImmune = !!s._debuffImmune; DS._onceSkills = s._onceSkills || null; DS._bombReady = !!s._bombReady; DS._beast = s._beast || 0;

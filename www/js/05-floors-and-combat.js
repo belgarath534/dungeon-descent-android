@@ -1425,10 +1425,7 @@ function doFight(action) {
     if (!DS._floorDmgDealt) DS._floorDmgDealt = 0; DS._floorDmgDealt += playerDmg;
     if (!DS._floorBestHit || playerDmg > DS._floorBestHit) DS._floorBestHit = playerDmg;
     // Mask — Corrupt on hit
-    if (DS._maskCorrupt && e.hp > 0) {
-      addCorruption(1, 'Mask');
-      addLog('🎭 Mask: Corruption spreads to the enemy... and back to you. +1 stack.');
-    }
+    // (this added corruption to you; "corruption on hit" now powers your next attack, in fxPlayerDamage)
     // Ember Heart relic — burn bonus on each attack
     if (e.hp > 0 && DS.inventory && DS.inventory.some(function(i){ return i.ashBurn; })) {
       var emberBurn = DS.inventory.reduce(function(sum, i){ return sum + (i.ashBurn || 0); }, 0);
@@ -1956,6 +1953,7 @@ function sanitizeGold() {
 }
 
 function enemyDead() {
+  if (DS._fx && DS._fx.bossMinion && DS.enemy && DS.enemy.isBoss) addLog('👹 With its master gone, the ' + DS._fx.bossMinion.name + ' fades into the dark.');
   // Necromancer — Death Follows: 15% a killed enemy fights for you in the next fight (never applied)
   if (DS.cls === 'Necromancer' && ACCESS.classTraits && DS.enemy && !DS.enemy.isBoss && Math.random() < 0.15) {
     DS._necroRisen = { name: DS.enemy.name, atk: [Math.max(1, Math.round(DS.enemy.atk[0] * 0.5)), Math.max(1, Math.round(DS.enemy.atk[1] * 0.5))] };
@@ -2301,8 +2299,15 @@ function enemyDead() {
       'The Shadow World':       { name:'Shadow Tear', icon:'🌑', type:'relic', isShadowItem:true, desc:'A crystallized drop of shadow. Boosts all damage by 12% and makes the Stalker hesitate once.', dmgAmp:0.12, stalkerHesitate:true },
     };
     var bossRelic = bossRelicTable[DS.dungeon];
+    // Already carrying this relic (kept from an earlier run): no second copy
+    if (bossRelic && DS.inventory && DS.inventory.some(function(i){ return i.type === 'relic' && i.name === bossRelic.name; })) {
+      addLog('🏆 ' + bossRelic.icon + ' ' + bossRelic.name + ' — you already carry this relic.');
+      bossRelic = null;
+    }
     if (bossRelic) {
       var relicCopy = Object.assign({}, bossRelic);
+      // Boss relics vanished when the run ended; one of each is now kept
+      try { var _rs = _jsonParseSafe(DDStore.getItem('dd_relic_stash'), '{}'); _rs[relicCopy.name] = relicCopy; DDStore.setItem('dd_relic_stash', JSON.stringify(_rs)); } catch (eR) {}
       // Apply immediate stat bonuses
       if (relicCopy.maxHpBonus) { DS.maxHp = (DS.maxHp || 100) + relicCopy.maxHpBonus; DS.hp = Math.min(DS.hp + relicCopy.maxHpBonus, DS.maxHp); }
       if (relicCopy.maxSpBonus) { DS.maxSp = (DS.maxSp || 50) + relicCopy.maxSpBonus; DS.sp = Math.min(DS.sp + relicCopy.maxSpBonus, DS.maxSp); }
@@ -2483,8 +2488,8 @@ function handleDeath() {
     setCombatBtns(true);
     return;
   }
-  // Crown Fragment relic — 10% chance to ignore death once per run
-  if (DS._crownShieldActive && !DS._crownShieldUsed) {
+  // Crown Fragment relic — 10% chance to ignore death once per run (it always worked)
+  if (DS._crownShieldActive && !DS._crownShieldUsed && Math.random() < 0.10) {
     DS._crownShieldUsed = true;
     DS._crownShieldActive = false;
     DS.hp = Math.round(DS.maxHp * 0.20);
@@ -2538,8 +2543,8 @@ function handleDeath() {
       if (deathPlay && typeof deathPlay.catch === 'function') deathPlay.catch(function() {});
     }
   } catch(e) {}
-  // Create skill orbs from upgraded skills on death
-  try { homeCreateSkillOrbs(); } catch(e) {}
+  // (Skill Orbs were made here on every lost life, wiping your Home upgrades
+  // each time; they are made when the run ends in death, below)
   // Resurrection — Paladin skill
   if (DS.lives <= 0 && DS.resurrection) {
     DS.resurrection = false;
@@ -2591,6 +2596,7 @@ function handleDeath() {
       // A lost Gauntlet sends the character home
       if (_gauntletActive) endGauntlet();
       medusaStillLooksCheck();
+      try { homeCreateSkillOrbs(); } catch(e) {}
       say('Defeated. All lives lost.');
       setTimeout(function() {
         try {

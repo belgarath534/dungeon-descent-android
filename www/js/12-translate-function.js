@@ -607,7 +607,43 @@ async function loadInbox() {
       return;
     }
 
-    // (removed — replaced by DOM-based rendering below)
+    // The message list had been deleted, so a non-empty inbox stayed on
+    // "Loading inbox..." forever. Built with text nodes, never HTML.
+    el.innerHTML = '';
+    var unclaimed = 0;
+    snap.forEach(function(doc) {
+      var m = doc.data() || {};
+      var coins = parseInt(m.coins, 10) || 0;
+      var row = document.createElement('div');
+      row.setAttribute('tabindex', '0');
+      row.style.cssText = 'border:1px solid #2a2418;background:#0d0b08;padding:10px 12px;margin-bottom:8px;font-family:Cinzel,serif;';
+      var from = document.createElement('div');
+      from.style.cssText = 'font-size:0.62rem;color:#c9a227;margin-bottom:4px;';
+      from.textContent = '✉ ' + (m.from || 'Dungeon Descent') + (m.createdAt ? ' · ' + new Date(m.createdAt).toLocaleDateString() : '');
+      var body = document.createElement('div');
+      body.style.cssText = 'font-size:0.66rem;color:#bbb;line-height:1.5;';
+      body.textContent = m.message || '';
+      row.appendChild(from); row.appendChild(body);
+      if (coins > 0) {
+        if (m.claimed) {
+          var done = document.createElement('div');
+          done.style.cssText = 'font-size:0.6rem;color:#555;margin-top:6px;';
+          done.textContent = '✓ ' + coins + ' Mystery Coins claimed';
+          row.appendChild(done);
+        } else {
+          unclaimed++;
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.style.cssText = 'margin-top:8px;padding:6px 12px;background:#1a1400;border:1px solid #c9a227;color:#ffdd44;font-family:Cinzel,serif;font-size:0.62rem;';
+          btn.textContent = '🪙 Claim ' + coins + ' Mystery Coins';
+          btn.setAttribute('aria-label', 'Claim ' + coins + ' Mystery Coins from ' + (m.from || 'the developer'));
+          btn.onclick = function() { btn.disabled = true; claimInboxMessage(doc.id, coins); };
+          row.appendChild(btn);
+        }
+      }
+      el.appendChild(row);
+    });
+    say('Inbox. ' + snap.size + ' message' + (snap.size === 1 ? '' : 's') + (unclaimed ? ', ' + unclaimed + ' with coins to claim.' : '.'));
   } catch(e) {
     console.error('Inbox load error:', e);
     el.innerHTML = '<div style="color:#ff4444;font-size:0.7rem;font-family:Cinzel,serif;padding:16px;">Failed to load inbox.</div>';

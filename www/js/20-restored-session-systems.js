@@ -689,14 +689,8 @@ function getCustomSpiritFunctions(abilityId) {
         onAttack: null, onKill: null
       };
     case 'gold-boost':
-      return {
-        onKill: function() {
-          var bonus = Math.floor((DS.enemy ? (DS.enemy.gold||5) : 5) * 0.25);
-          DS.gold += bonus; addGlobalGold(bonus);
-          addLog('✨ Fortune\'s Veil — extra ' + bonus + 'g!');
-        },
-        onAttack: null, onCombatStart: null
-      };
+      // (+25% is applied to kill gold where it's counted; this onKill paid it a second time)
+      return { onKill: null, onAttack: null, onCombatStart: null };
     case 'poison-start':
       return {
         onCombatStart: function() {
@@ -719,12 +713,8 @@ function getCustomSpiritFunctions(abilityId) {
         onKill: null, onCombatStart: null
       };
     case 'corruption':
-      return {
-        onKill: function() {
-          if (DS.corruption > 0) { DS.corruption = Math.max(0, DS.corruption - 5); addLog('✨ Purifying Song reduces corruption by 5%.'); }
-        },
-        onAttack: null, onCombatStart: null
-      };
+      // "5% each floor" — it also cleaned some on every kill (the floor version is in nextFloor)
+      return { onKill: null, onAttack: null, onCombatStart: null };
     case 'xp-boost':
       return {
         onKill: function() { gainXP(Math.floor((ENEMY_XP[getEnemyTier(DS.enemy ? DS.enemy.name : '')] || 20) * 0.20)); addLog('✨ Scholar\'s Mark — bonus XP!'); },
@@ -732,22 +722,24 @@ function getCustomSpiritFunctions(abilityId) {
       };
     case 'crit-boost':
       return {
-        onCombatStart: function() { DS.critBonus = (DS.critBonus || 0) + 15; addLog('✨ Predator\'s Eye — +15% crit chance!'); },
+        // Chances are fractions: adding 15 made every hit a crit. It lasts the fight (fxReset undoes fightCrit).
+        onCombatStart: function() { DS.critBonus = (DS.critBonus || 0) + 0.15; fxGet().fightCrit = (fxGet().fightCrit || 0) + 0.15; addLog('✨ Predator\'s Eye — +15% crit chance!'); },
         onAttack: null, onKill: null
       };
     case 'def-boost':
       return {
-        onCombatStart: function() { DS.defBonus = (DS.defBonus || 0) + 4; updateTopBar(); addLog('✨ Iron Veil — +4 DEF!'); },
+        // (re-added every fight, so defense kept climbing; now it's +4 while the fight lasts)
+        onCombatStart: function() { DS.defBonus = (DS.defBonus || 0) + 4; fxGet().fightDef += 4; updateTopBar(); addLog('✨ Iron Veil — +4 DEF!'); },
         onAttack: null, onKill: null
       };
     case 'atk-boost':
       return {
-        onCombatStart: function() { DS.atkBonus = (DS.atkBonus || 0) + 3; updateTopBar(); addLog('✨ Wrath Brand — +3 ATK!'); },
+        onCombatStart: function() { DS.atkBonus = (DS.atkBonus || 0) + 3; fxGet().fightAtk += 3; updateTopBar(); addLog('✨ Wrath Brand — +3 ATK!'); },
         onAttack: null, onKill: null
       };
     case 'flee-boost':
       return {
-        onCombatStart: function() { DS.fleeBonus = (DS.fleeBonus || 0) + 30; addLog('✨ Wind Step — flee chance boosted!'); },
+        onCombatStart: function() { DS.fleeBonus = (DS.fleeBonus || 0) + 0.30; fxGet().fightFlee = (fxGet().fightFlee || 0) + 0.30; addLog('✨ Wind Step — flee chance +30%!'); },
         onAttack: null, onKill: null
       };
     case 'heal-floor':
@@ -767,7 +759,7 @@ function getCustomSpiritFunctions(abilityId) {
       };
     case 'luck-boost':
       return {
-        onCombatStart: function() { DS.luckBonus = (DS.luckBonus || 0) + 10; addLog('✨ Lucky Charm — +10 luck!'); },
+        onCombatStart: function() { DS.luckBonus = (DS.luckBonus || 0) + 0.10; fxGet().fightLuck = (fxGet().fightLuck || 0) + 0.10; addLog('✨ Lucky Charm — +10% luck!'); },
         onAttack: null, onKill: null
       };
     case 'lifesteal':

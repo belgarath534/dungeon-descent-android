@@ -486,7 +486,8 @@ function bossTimerEnrage() {
   var wrap = document.getElementById('dg-combat-wrap');
   if (wrap) { wrap.style.animation = 'none'; wrap.style.borderColor = '#ff2222'; }
 
-  // Add minion to combat log as flavor
+  // The minion was only announced; it now fights beside the boss and falls with it
+  fxGet().bossMinion = { name: minionName, atk: [Math.max(2, Math.round(e.atk[0] * 0.3)), Math.max(3, Math.round(e.atk[1] * 0.3))] };
   incrementAchievementStat('bossEnrages', 1);
   checkAchievements();
   sfx('sfx-hit');

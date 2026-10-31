@@ -172,7 +172,9 @@ function mpJoinRoom() {
   });
 }
 
+var _mpAnnouncedJoin = false;
 function mpListenToRoom(code) {
+  _mpAnnouncedJoin = false;
   if (_mpRoomListener) {
     try { window._fbRtdb.ref('pvp_rooms/' + (_mpRoomCode || code)).off('value', _mpRoomListener); } catch(e) {}
   }
@@ -232,7 +234,14 @@ function mpHandleRoomUpdate(room) {
     return;
   }
 
-  // Rematch reset — battleStarted went back to false after a battle was over
+  // Rematch reset — battleStarted went back to false after a battle was over.
+  // (An opponent joining for the first time also looks like this; only a room
+  // with a rematch log is a rematch.)
+  var _isRematch = room.log && JSON.stringify(room.log).indexOf('Rematch requested') !== -1;
+  if (!room.battleStarted && room.status === 'full' && !_isRematch && room.p1 && room.p2) {
+    if (!_mpAnnouncedJoin) { _mpAnnouncedJoin = true; mpSetStatus('Your opponent has joined! Press Ready when prepared to fight.'); say('Your opponent has joined. Press Ready when you are prepared to fight.'); }
+    return;
+  }
   if (!room.battleStarted && room.status === 'full') {
     var rematch = document.getElementById('mp-rematch-section');
     var actions = document.getElementById('mp-combat-actions');
@@ -329,6 +338,8 @@ function mpAction(action) {
       me.defending = true;
       logMsg = '🛡️ ' + me.name + ' braces for the next hit.';
     } else if (action === 'skill') {
+      // (skills could be used with 0 SP)
+      if ((me.sp || 0) < 5) { mpSetStatus('Not enough SP for a skill — you need 5.'); say('Not enough SP. Skills cost 5 SP.'); return; }
       var skillDmg = Math.floor(dmg * 2.0);
       var finalSkill = opponent.defending ? Math.floor(skillDmg * 0.4) : skillDmg;
       opponent.hp = Math.max(0, (opponent.hp || 0) - finalSkill);
@@ -399,7 +410,9 @@ function mpHandleBattleOver(room) {
   if (actions) actions.style.display = 'none';
   if (rematch) rematch.style.display = 'block';
 
-  var isWinner = room.winnerId === _mpMyId;
+  // When your opponent leaves mid-battle you win (you were told you lost)
+  var isWinner = room.winnerId === _mpMyId || (room.opponentLeft && room.leftId !== _mpMyId && !room.winnerId);
+  if (room.opponentLeft && isWinner && !room.winnerId) room.loserName = room.loserName || 'Your opponent, who left';
   if (isWinner) {
     mpSetStatus('🏆 YOU WIN! ' + (room.loserName || 'Your opponent') + ' has been defeated!');
     sfx('sfx-victory');
@@ -541,7 +554,7 @@ function mpLeave() {
           _mpRoomRef.remove().catch(function(){});
         } else {
           // Notify opponent we left
-          _mpRoomRef.update({ status: 'over', opponentLeft: true }).catch(function(){});
+          _mpRoomRef.update({ status: 'over', opponentLeft: true, leftId: _mpMyId }).catch(function(){});
         }
       }
     }).catch(function(){});

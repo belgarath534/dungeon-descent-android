@@ -444,6 +444,21 @@ function applyRaceStats(ch) {
 // Seasonal shop rewards saved "for your next run" (nothing ever read them).
 function applyNextRunRewards(ch) {
   if (!ch || hasMidRunSave(ch)) return;
+  // Kept boss relics come with you, with their bonuses
+  try {
+    var _stash = _jsonParseSafe(DDStore.getItem('dd_relic_stash'), '{}');
+    Object.keys(_stash).forEach(function(nm) {
+      var r = _stash[nm];
+      if (!r || DS.inventory.some(function(i){ return i.type === 'relic' && i.name === nm; })) return;
+      var rc = Object.assign({}, r);
+      if (rc.maxHpBonus) { DS.maxHp += rc.maxHpBonus; DS.hp = Math.min(DS.maxHp, DS.hp + rc.maxHpBonus); }
+      if (rc.maxSpBonus) { DS.maxSp += rc.maxSpBonus; DS.sp = Math.min(DS.maxSp, DS.sp + rc.maxSpBonus); }
+      if (rc.atkBonus) DS._bossRelicAtkBonus = (DS._bossRelicAtkBonus || 0) + rc.atkBonus;
+      if (rc.hasCrownShield) DS._crownShieldActive = true;
+      if (rc.stalkerImmunity) DS._stalkerImmunityFloors = (DS._stalkerImmunityFloors || 0) + rc.stalkerImmunity;
+      DS.inventory.push(rc);
+    });
+  } catch (eRel) {}
   // "In a single run" bounties added up across every run
   try {
     var _bd = getBountyData();

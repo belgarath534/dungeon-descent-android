@@ -619,7 +619,7 @@ var LIBERTY_SHOP_ITEMS = [
   },
   { id:'liberty-title',      name:'Patriot Title',          icon:'🗽', cost:20, desc:'Earn the title "The Patriot". Exclusive to July 4th.',
     apply: function() {
-      if (CHARS[_charIdx]) { CHARS[_charIdx].title = 'The Patriot'; saveChars(); }
+      grantSeasonalTitle('The Patriot');
       say('Title unlocked: The Patriot. A title earned only on Independence Day.');
     }
   },
@@ -681,7 +681,7 @@ var SHAMROCK_SHOP_ITEMS = [
   },
   { id:'stpat-title',      name:'The Lucky One',         icon:'☘️', cost:25, desc:'Earn the title "The Lucky One". Exclusive to St. Patrick\'s Day.',
     apply: function() {
-      if (CHARS[_charIdx]) { CHARS[_charIdx].title = 'The Lucky One'; saveChars(); }
+      grantSeasonalTitle('The Lucky One');
       say('Title unlocked: The Lucky One. A title earned only on St. Patrick\'s Day.');
     }
   },
@@ -720,7 +720,7 @@ var CHOCOLATE_SHOP_ITEMS = [
   },
   { id:'val-title',         name:'The Beloved',       icon:'💘', cost:28, desc:'Earn the title "The Beloved". Exclusive to Valentine\'s Day.',
     apply: function() {
-      if (CHARS[_charIdx]) { CHARS[_charIdx].title = 'The Beloved'; saveChars(); }
+      grantSeasonalTitle('The Beloved');
       say('Title unlocked: The Beloved. A title earned only on Valentine\'s Day.');
     }
   },
