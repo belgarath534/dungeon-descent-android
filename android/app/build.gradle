@@ -7,7 +7,7 @@ android {
         applicationId "com.dungeon.descent"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 64
+        versionCode 70
         versionName "11.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
