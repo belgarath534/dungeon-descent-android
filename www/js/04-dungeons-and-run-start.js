@@ -2212,7 +2212,6 @@ function initDungeon(ch) {
     journalLog: []
   };
   if (ch.prof === 'Mercenary') {
-    DS.gold = 15;
     DS.inventory.push({ name:'Mercenary Blade', icon:'⚔️', type:'weapon', atkBonus:3, desc:'+3 attack.' });
     DS.atkBonus += 3;
   }
@@ -2324,7 +2323,10 @@ function initDungeon(ch) {
   // Apply daily challenge
   applyDailyChallenge();
   // Apply starting gold upgrade
-  if (hasUpgrade('cu-starting-gold')) DS.gold += 15; addGlobalGold(15);
+  if (hasUpgrade('cu-starting-gold')) { DS.gold += 15; addGlobalGold(15); }
+  // Mercenary — +15 starting gold, as the card says. It used to be set before the
+  // wallet sync above, which replaced it, so it never reached the player.
+  if (ch.prof === 'Mercenary') { DS.gold += 15; addGlobalGold(15); }
   showDgPanels(true, false, false);
   document.getElementById('dg-end').style.display = 'none';
   updateXPBar();
