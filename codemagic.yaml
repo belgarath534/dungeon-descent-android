@@ -133,3 +133,24 @@ workflows:
           python3 -m venv /tmp/gpenv
           /tmp/gpenv/bin/pip install --quiet pyjwt cryptography requests
           /tmp/gpenv/bin/python -u /tmp/backrooms/tools/playgames/create.py
+
+  # Same, adding the Portuguese names to everything (after Portuguese (Brazil)
+  # is added as a language in the Play Games project).
+  backrooms-playgames-portuguese:
+    name: Accessible Backrooms Play Games Portuguese
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - google_credentials
+      vars:
+        PLAYGAMES_PT: "1"
+    scripts:
+      - name: Fetch Accessible Backrooms
+        script: |
+          git clone --depth 1 https://github.com/belgarath534/Accessible-back-rooms.git /tmp/backrooms
+      - name: Add Portuguese to the achievements and leaderboards
+        script: |
+          python3 -m venv /tmp/gpenv
+          /tmp/gpenv/bin/pip install --quiet pyjwt cryptography requests
+          /tmp/gpenv/bin/python -u /tmp/backrooms/tools/playgames/create.py
