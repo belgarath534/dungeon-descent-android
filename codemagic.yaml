@@ -75,7 +75,7 @@ workflows:
           /tmp/gpenv/bin/pip install --quiet pyjwt cryptography requests
           /tmp/gpenv/bin/python /tmp/backrooms/tools/googleplay/listing.py
 
-  # Builds Backrooms for Android, signed, and sends it to Google Play's internal testing track.
+  # Builds Backrooms for Android, signed, and sends it to Google Play's Closed testing track.
   backrooms-android-release:
     name: Accessible Backrooms Android (Google Play)
     max_build_duration: 60
@@ -114,4 +114,4 @@ workflows:
     publishing:
       google_play:
         credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
+        track: alpha   # alpha = the Closed testing track in Play Console
