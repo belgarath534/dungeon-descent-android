@@ -119,7 +119,7 @@ workflows:
   # Creates Backrooms' Google Play Games achievements and leaderboards.
   backrooms-playgames-setup:
     name: Accessible Backrooms Play Games setup
-    max_build_duration: 20
+    max_build_duration: 90
     instance_type: mac_mini_m2
     environment:
       groups:
@@ -132,4 +132,4 @@ workflows:
         script: |
           python3 -m venv /tmp/gpenv
           /tmp/gpenv/bin/pip install --quiet pyjwt cryptography requests
-          /tmp/gpenv/bin/python /tmp/backrooms/tools/playgames/create.py
+          /tmp/gpenv/bin/python -u /tmp/backrooms/tools/playgames/create.py
