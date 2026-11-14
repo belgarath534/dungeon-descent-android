@@ -115,3 +115,21 @@ workflows:
       google_play:
         credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
         track: alpha   # alpha = the Closed testing track in Play Console
+
+  # Creates Backrooms' Google Play Games achievements and leaderboards.
+  backrooms-playgames-setup:
+    name: Accessible Backrooms Play Games setup
+    max_build_duration: 20
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - google_credentials
+    scripts:
+      - name: Fetch Accessible Backrooms
+        script: |
+          git clone --depth 1 https://github.com/belgarath534/Accessible-back-rooms.git /tmp/backrooms
+      - name: Create the achievements and leaderboards
+        script: |
+          python3 -m venv /tmp/gpenv
+          /tmp/gpenv/bin/pip install --quiet pyjwt cryptography requests
+          /tmp/gpenv/bin/python /tmp/backrooms/tools/playgames/create.py
