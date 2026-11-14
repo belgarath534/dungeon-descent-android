@@ -51,3 +51,67 @@ workflows:
       google_play:
         credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
         track: production
+
+  # ---- Accessible Backrooms for Android ----
+  # These live here because this Codemagic app holds the Google Play login
+  # (google_credentials). They fetch the Accessible Backrooms repository
+  # (public) and work on that.
+
+  # Fills in Backrooms' Google Play store listing (texts, icon, banner, screenshots).
+  backrooms-play-listing:
+    name: Accessible Backrooms Google Play listing
+    max_build_duration: 15
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - google_credentials
+    scripts:
+      - name: Fetch Accessible Backrooms
+        script: |
+          git clone --depth 1 https://github.com/belgarath534/Accessible-back-rooms.git /tmp/backrooms
+      - name: Fill in the store listing
+        script: |
+          python3 -m venv /tmp/gpenv
+          /tmp/gpenv/bin/pip install --quiet pyjwt cryptography requests
+          /tmp/gpenv/bin/python /tmp/backrooms/tools/googleplay/listing.py
+
+  # Builds Backrooms for Android, signed, and sends it to Google Play's internal testing track.
+  backrooms-android-release:
+    name: Accessible Backrooms Android (Google Play)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      java: 21
+      node: v20.14.0
+      android_signing:
+        - dungeon-descent-android
+      groups:
+        - google_credentials
+    scripts:
+      - name: Fetch Accessible Backrooms
+        script: |
+          git clone --depth 1 https://github.com/belgarath534/Accessible-back-rooms.git /tmp/backrooms
+      - name: Install dependencies
+        script: |
+          cd /tmp/backrooms && npm install --legacy-peer-deps
+      - name: Capacitor sync
+        script: |
+          cd /tmp/backrooms && npx cap sync android
+      - name: Set the version code
+        script: |
+          cd /tmp/backrooms
+          sed -i '' "s/versionCode [0-9]*/versionCode $((BUILD_NUMBER + 1))/" android/app/build.gradle
+          grep versionCode android/app/build.gradle
+      - name: Build signed AAB
+        script: |
+          cd /tmp/backrooms/android
+          chmod +x gradlew
+          ./gradlew bundleRelease
+          mkdir -p $CM_BUILD_DIR/backrooms-out
+          cp app/build/outputs/bundle/release/*.aab $CM_BUILD_DIR/backrooms-out/
+    artifacts:
+      - backrooms-out/*.aab
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
