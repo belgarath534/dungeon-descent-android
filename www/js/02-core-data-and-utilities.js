@@ -672,8 +672,24 @@ function _playTrackFallback(name, url) {
   }
 }
 
+// Hover clicks on menu buttons. Touch screens send "mouse" hover events while
+// a finger touches and scrolls, dozens a second; each one started another
+// copy of the click, and on Android (a Galaxy S25) the pile of sounds went on
+// for 5-10 seconds and then crashed the app. Now: none right after a touch,
+// one per button, and at most one every 120 ms.
+var _hoverLastAt = 0, _hoverLastEl = null, _lastTouchAt = 0;
+try {
+  document.addEventListener('touchstart', function() { _lastTouchAt = Date.now(); }, { passive: true, capture: true });
+  document.addEventListener('touchmove', function() { _lastTouchAt = Date.now(); }, { passive: true, capture: true });
+} catch (e) {}
 function sfxHover(e) {
-  if (e.target && e.target.classList.contains('menu-btn')) sfx('sfx-hover');
+  var t = e.target && e.target.closest ? e.target.closest('.menu-btn') : null;
+  if (!t) return;
+  var now = Date.now();
+  if (now - _lastTouchAt < 1500) return;
+  if (t === _hoverLastEl || now - _hoverLastAt < 120) return;
+  _hoverLastEl = t; _hoverLastAt = now;
+  sfx('sfx-hover');
 }
 
 function playAmbient(key) {
@@ -727,8 +743,14 @@ function getAmbientKey() {
   return 'crypt';
 }
 
+var _sfxLastAt = {};
 function sfx(n) {
   if (!AUD.sfxOn) return;
+  // Safety net: the same sound at most once every 60 ms, so nothing can pile
+  // up dozens of copies of one sound (see sfxHover).
+  var _now = Date.now();
+  if (_sfxLastAt[n] && _now - _sfxLastAt[n] < 60) return;
+  _sfxLastAt[n] = _now;
   try {
     // Use Howler if available (fixes iOS volume control)
     if (window.Howl && AUD.howls && AUD.howls[n]) {
