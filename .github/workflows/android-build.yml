@@ -1,0 +1,45 @@
+# Builds the Android app (a debug APK, unsigned for the Play Store) on every
+# push that changes it, the same steps as Codemagic's "Dungeon Descent
+# Android" workflow: npm install, cap sync, gradle assembleDebug. A red build
+# means it doesn't compile; the APK is attached to the run to install on a
+# test phone. The signed Google Play release stays on Codemagic (it holds the
+# signing key and the Play login).
+name: Android build
+
+on:
+  push:
+    branches: [main, claude/affectionate-heisenberg-tmog1v]
+    paths: ['www/**', 'android/**', 'package.json', 'package-lock.json', 'capacitor.config.json', '.github/workflows/android-build.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Capacitor sync
+        run: npx cap sync android
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dungeon-descent-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
