@@ -549,7 +549,25 @@ function pickRunMode(mode) {
   say(mode === 'classic' ? 'Classic Run selected. Fresh start every run.' : 'Legacy Mode selected. Your level persists between runs.');
 }
 
+// 12.0.2: later dungeons are harder. From the third dungeon (Frosthold
+// Abyss) enemies and bosses have +15% HP and attack, and 10% more for each
+// dungeon after it (The Shadow World +75%). The apps use the same numbers.
+var DEPTH_ORDER = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep','The Shadow World'];
+function dungeonDepthMult(dungeon) {
+  var i = DEPTH_ORDER.indexOf(dungeon);
+  return i >= 2 ? 1.15 + (i - 2) * 0.10 : 1;
+}
+
 function applyTierScaling(enemy) {
+  if (enemy && !enemy._depthScaled) {
+    var dm = dungeonDepthMult(DS.dungeon);
+    enemy._depthScaled = true;
+    if (dm !== 1) {
+      enemy.hp = Math.round(enemy.hp * dm);
+      enemy.maxHp = enemy.hp;
+      if (Array.isArray(enemy.atk)) enemy.atk = [Math.round(enemy.atk[0] * dm), Math.round(enemy.atk[1] * dm)];
+    }
+  }
   // Chaos Mode (secret console code) — getChaosGoldMult() already randomizes
   // gold at the enemyDead() payout, but the matching enemy-strength half,
   // getChaosEnemyMult(), was never actually applied anywhere.
@@ -1731,6 +1749,15 @@ async function sendFeedback() {
   }
 }
 
+// One Void code a day (12.2): any code in the right format was accepted, so
+// typing made-up codes paid out Mystery Coins and gold without limit.
+function voidCodeAllowedToday() {
+  var today = new Date().toISOString().slice(0, 10);
+  if (DDStore.getItem('dd_void_code_day') === today) return false;
+  DDStore.setItem('dd_void_code_day', today);
+  return true;
+}
+
 function redeemCode() {
   var input = document.getElementById('redeem-code-input');
   var msg = document.getElementById('redeem-msg');
@@ -1783,6 +1810,7 @@ function redeemCode() {
   var redeemed = _jsonParseSafe(DDStore.getItem('dd_redeemed_codes'), '[]');
   if (redeemed.indexOf(code) !== -1) { msg.textContent='Already redeemed.'; msg.style.color='#ff4444'; say('Already redeemed.'); return; }
   if (code.match(/^VOID-[A-Z0-9]{4}-[A-Z0-9]{4}$/)) {
+    if (!voidCodeAllowedToday()) { msg.textContent='You already redeemed a Void code today. Come back tomorrow.'; msg.style.color='#ff4444'; say('You already redeemed a Void code today. Come back tomorrow.'); return; }
     var seed = 0;
     for (var i = 0; i < code.length; i++) seed = (seed * 31 + code.charCodeAt(i)) & 0xffff;
     var prize = REWARD_CODE_PRIZES[seed % REWARD_CODE_PRIZES.length];

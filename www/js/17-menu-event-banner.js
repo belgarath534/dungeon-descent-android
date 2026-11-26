@@ -1627,7 +1627,7 @@ function confirmImport() {
   try {
     var data = JSON.parse(decodeURIComponent(escape(atob(code))));
     if (!data.name || !data.cls) { say('Invalid code. Could not import character.'); return; }
-    if (CHARS.length >= 5) { say('Character slots full. Delete a character first.'); return; }
+    if (CHARS.length >= MAX_CHARS) { say('Character slots full. Delete a character first.'); return; }
     // An export code saved from an older version of the game can be
     // missing fields that didn't exist yet back then (race/prof/dungeon/
     // difficulty). Backfill instead of importing a character with holes

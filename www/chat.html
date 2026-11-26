@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dungeon Descent Chat</title>
+<meta name="description" content="The Dungeon Descent community: channels, private messages and group chats, built for screen readers.">
+<style>
+  :root { --bg: #0b0806; --panel: #16110c; --line: #3a2c18; --gold: #f5c850; --dim: #b49a6a; --text: #f1e6d2; --warn: #ffab5e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 1.2rem; margin: 0; color: var(--gold); }
+  .badge { font-size: .8rem; border: 1px solid var(--gold); color: var(--gold); padding: 1px 8px; border-radius: 10px; }
+  main { max-width: 900px; margin: 0 auto; padding: 16px; }
+  nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  button, .btn { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+  button:hover, button:focus-visible { border-color: var(--gold); outline: 2px solid var(--gold); outline-offset: 1px; }
+  button[aria-current="page"] { background: #2a1f10; border-color: var(--gold); color: var(--gold); }
+  button.danger { color: #ff8a7a; }
+  input, textarea, select { background: #0f0b07; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; width: 100%; }
+  label { display: block; margin: 8px 0 4px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin: 10px 0; }
+  .muted { color: var(--dim); }
+  a { color: var(--gold); }
+  .warn { color: var(--warn); }
+  ul.list { list-style: none; padding: 0; margin: 0; }
+  ul.list > li { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  ul.list > li > button.open { width: 100%; text-align: left; }
+  #messages { max-height: 60vh; overflow-y: auto; }
+  .msg .who { font-weight: bold; color: var(--gold); }
+  .msg .when { color: var(--dim); font-size: .85rem; }
+  .msg .reply { color: var(--dim); font-size: .85rem; }
+  .msg details { display: inline-block; margin-left: 8px; }
+  .msg details summary { cursor: pointer; color: var(--dim); font-size: .9rem; }
+  .msg details .row { margin-top: 6px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dungeon Descent Chat</h1>
+  <span class="badge">In testing</span>
+  <a href="index.html" class="muted">Back to the game</a>
+</header>
+<div id="live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+<main id="main">
+  <p id="loading">Loading…</p>
+
+  <!-- Sign in -->
+  <section id="signin" hidden aria-labelledby="signin-h">
+    <h2 id="signin-h">Sign in</h2>
+    <p>Welcome to the Dungeon Descent community. Sign in with the same account you use in the game. Chat is new and still in testing, so if something doesn't work, tell us in #bug-reports.</p>
+    <div class="card">
+      <button id="google">Sign in with Google</button>
+    </div>
+    <form class="card" id="email-form">
+      <h3 id="email-h">Sign in with email</h3>
+      <label for="email">Email</label><input id="email" type="email" autocomplete="email" required>
+      <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+      <div class="row" style="margin-top:10px">
+        <button type="submit" id="email-go">Sign in</button>
+        <button type="button" id="email-mode">Create a new account instead</button>
+        <button type="button" id="forgot">Forgot password</button>
+      </div>
+    </form>
+    <p class="muted">If you signed in to the iPhone game with Apple, use the iPhone or Mac app for chat for now, or add an email to your account in the game.</p>
+    <p id="signin-msg" class="warn" role="alert"></p>
+  </section>
+
+  <!-- Username -->
+  <section id="join" hidden aria-labelledby="join-h">
+    <h2 id="join-h">Your username</h2>
+    <p id="join-text">Pick a username. It's how other players see you, here and in the game. 3 to 20 letters, numbers or underscores.</p>
+    <form id="join-form" class="card">
+      <label for="username">Username</label><input id="username" autocomplete="nickname" required>
+      <div class="row" style="margin-top:10px"><button type="submit">Continue</button><button type="button" class="signout danger">Sign out</button></div>
+    </form>
+    <p id="join-msg" class="warn" role="alert"></p>
+  </section>
+
+  <!-- Rules -->
+  <section id="rules" hidden aria-labelledby="rules-h">
+    <h2 id="rules-h">Before you start: the community rules</h2>
+    <ul id="rules-list"></ul>
+    <p>Messages in channels are seen by every member. Private messages and group chats are seen only by the people in them. You can report or block anyone, any time. By continuing you agree to these rules and to the <a href="terms.html">Terms of Service</a>.</p>
+    <div class="row"><button id="agree">I agree</button><button class="signout danger">Sign out</button></div>
+  </section>
+
+  <!-- The chat -->
+  <section id="app" hidden>
+    <nav aria-label="Chat sections">
+      <button data-tab="channels">Channels</button>
+      <button data-tab="dms">Messages</button>
+      <button data-tab="groups">Groups</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+    <p id="banned-note" class="warn" hidden>You've been banned from chat. You can read, but not post.</p>
+
+    <div id="tab-channels" hidden>
+      <h2>Channels</h2>
+      <details id="online-box" class="card"><summary id="online-count">Players online</summary><ul class="list" id="online-list"></ul></details>
+      <div id="dev-channel-tools" hidden class="row"><button id="new-channel">New channel</button></div>
+      <ul class="list" id="channel-list"></ul>
+    </div>
+
+    <div id="tab-dms" hidden>
+      <h2>Messages</h2>
+      <form id="new-dm" class="row card">
+        <label for="dm-name" class="sr-only">Username to message</label>
+        <input id="dm-name" placeholder="Username to message" style="flex:1">
+        <button type="submit">New message</button>
+      </form>
+      <ul class="list" id="dm-list"></ul>
+    </div>
+
+    <div id="tab-groups" hidden>
+      <h2>Groups</h2>
+      <form id="new-group" class="row card">
+        <label for="group-name" class="sr-only">New group name</label>
+        <input id="group-name" placeholder="New group name" style="flex:1" maxlength="40">
+        <button type="submit">New group</button>
+      </form>
+      <ul class="list" id="group-list"></ul>
+    </div>
+
+    <div id="tab-settings" hidden></div>
+
+    <!-- One conversation -->
+    <div id="room" hidden>
+      <div class="row"><button id="back">Back</button><h2 id="room-title" tabindex="-1" style="margin:0"></h2></div>
+      <p id="room-topic" class="muted"></p>
+      <div id="group-info" class="card" hidden></div>
+      <div id="profile" class="card" hidden role="region" aria-label="Player profile"></div>
+      <details id="pinned-box" class="card" hidden><summary id="pinned-title">Pinned</summary><ul class="list" id="pinned-list"></ul></details>
+      <ul class="list" id="messages" aria-label="Messages, newest last"></ul>
+      <form id="composer" class="card">
+        <p id="replying" class="muted" hidden></p>
+        <label for="draft" id="draft-label">Message</label>
+        <textarea id="draft" rows="2" maxlength="1000"></textarea>
+        <div class="row" style="margin-top:8px"><button type="submit">Send</button><button type="button" id="cancel-reply" hidden>Cancel reply</button></div>
+        <p id="send-msg" class="warn" role="alert"></p>
+      </form>
+      <p id="readonly-note" class="muted" hidden></p>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
+         signInWithEmailAndPassword, sendPasswordResetEmail, signOut, connectAuthEmulator } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
+import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc,
+         onSnapshot, query, where, orderBy, limit, writeBatch, serverTimestamp, deleteField, FieldPath } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+{
+  const app = initializeApp({
+    apiKey: "AIzaSyBnsSoUysT_T_rzdEnbZB4ybyL6Uprw1I4",
+    authDomain: "dungeon-descent-fbaf2.firebaseapp.com",
+    projectId: "dungeon-descent-fbaf2",
+    storageBucket: "dungeon-descent-fbaf2.firebasestorage.app",
+    messagingSenderId: "109323203666",
+    appId: "1:109323203666:web:47b6fb68e1492d1058db8b"
+  });
+  const auth = getAuth(app);
+  // The game's database (the iPhone app uses the same one). Only the modular
+  // SDK can pick a named database; the compat one always uses "(default)".
+  const fdb = getFirestore(app, 'dungeon-descent');
+  // ?emulator: the local Firebase emulators, for testing without the real data.
+  if (/[?&]emulator\b/.test(location.search)) {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(fdb, '127.0.0.1', 8085);
+  }
+  const TS = () => serverTimestamp();
+  // A small db.collection(...).doc(...) style layer over the modular SDK.
+  const wrapSnap = (d) => ({ id: d.id, exists: d.exists(), data: () => d.data() || {}, ref: R(d.ref.path) });
+  const wrapQS = (qs) => ({ docs: qs.docs.map(wrapSnap), empty: qs.empty, size: qs.size });
+  function R(path) {
+    const r = doc(fdb, path);
+    return { id: r.id, path, _r: r,
+      get: () => getDoc(r).then(wrapSnap),
+      set: (data, opt) => setDoc(r, data, opt || {}),
+      update: (...a) => updateDoc(r, ...a),
+      delete: () => deleteDoc(r),
+      onSnapshot: (f, e) => onSnapshot(r, (x) => f(wrapSnap(x)), e),
+      collection: (c) => C(path + '/' + c) };
+  }
+  function Q(base, cons) {
+    return { where: (...a) => Q(base, [...cons, where(...a)]), orderBy: (...a) => Q(base, [...cons, orderBy(...a)]),
+      limit: (n) => Q(base, [...cons, limit(n)]),
+      get: () => getDocs(query(base, ...cons)).then(wrapQS),
+      onSnapshot: (f, e) => onSnapshot(query(base, ...cons), (x) => f(wrapQS(x)), e) };
+  }
+  function C(path) {
+    const c = collection(fdb, path);
+    return Object.assign(Q(c, []), { doc: (id) => R(id ? path + '/' + id : doc(c).path), add: (data) => addDoc(c, data) });
+  }
+  const db = { collection: C, doc: R, batch: () => { const b = writeBatch(fdb);
+    return { set: (r, d) => b.set(r._r, d), update: (r, d) => b.update(r._r, d), commit: () => b.commit() }; } };
+  const DEV = 'WgqZGmnPKeYIymlMkx0aAg8G2T52';
+  const $ = (id) => document.getElementById(id);
+  const RULES = [
+    'Be kind. No harassment, hate, threats or bullying.',
+    'No swearing or sexual content. A filter blocks the worst words.',
+    "No spam, scams or sharing other people's private information.",
+    'Report anything that breaks these rules. Moderators review every report within 24 hours.',
+    'Breaking the rules gets your messages removed, and can get you banned from chat.'
+  ];
+  const BAD = /\b(fuck\w*|motherfuck\w*|shit|shits|shitty|shitting|bullshit|bitch\w*|cunt\w*|nigg\w*|fag|fags|faggot\w*|retard\w*|whore\w*|slut\w*|dick|dicks|cock|cocks|pussy|pussies|ass|asshole\w*|bastard\w*|piss|pissed|pissing)\b/i;
+
+  const S = { user: null, member: null, channels: [], dms: [], groups: [], blocked: {}, banned: false, tab: 'channels',
+              room: null, roomUnsub: null, messages: [], replyTo: null, unsubs: [], creating: false };
+  const isDev = () => S.user && S.user.uid === DEV;
+  const isMod = () => isDev() || (S.member && S.member.mod === true);
+  const isTester = () => isMod() || (S.member && S.member.tester === true);
+
+  // ── Helpers (player text only ever goes in as textContent) ──
+  function say(text) { const l = $('live'); l.textContent = ''; setTimeout(() => { l.textContent = text; }, 50); }
+  function el(tag, attrs, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === 'text') e.textContent = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else if (v !== undefined && v !== null && v !== false) e.setAttribute(k, v === true ? '' : v);
+    }
+    for (const k of kids) if (k) e.append(k);
+    return e;
+  }
+  function show(id) {
+    for (const s of ['loading', 'signin', 'join', 'rules', 'app']) $(s).hidden = s !== id;
+  }
+  function ago(d) {
+    if (!d) return 'just now';
+    const s = Math.round((Date.now() - d.getTime()) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + ' min ago';
+    if (s < 86400) return Math.floor(s / 3600) + ' h ago';
+    return d.toLocaleDateString();
+  }
+  function usernameProblem(n) {
+    if (n.length < 3) return 'A username needs at least 3 characters.';
+    if (n.length > 20) return 'A username can have at most 20 characters.';
+    if (!/^[A-Za-z0-9_]+$/.test(n)) return 'A username can only have letters, numbers and underscores.';
+    const low = n.toLowerCase();
+    if (/(admin|moderator|developer|dungeondescent|official|staff|support)/.test(low) || ['dev', 'mod', 'leonardo'].includes(low))
+      return "That name is kept for the Dungeon Descent team. Pick another.";
+    return null;
+  }
+  const pairID = (a, b) => [a, b].sort().join('_');
+  const EMOJIS = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
+  const EMOJI_NAMES = { '👍': 'thumbs up', '❤️': 'heart', '😂': 'laughing', '🔥': 'fire', '😮': 'wow', '😢': 'sad' };
+  const pref = (k, d) => { try { const v = localStorage.getItem('chat.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
+  const setPref = (k, v) => { try { localStorage.setItem('chat.' + k, JSON.stringify(v)); } catch (e) {} };
+  function reactionText(r) {
+    const counts = {};
+    Object.values(r || {}).forEach(e => { counts[e] = (counts[e] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([e, n]) => n + ' ' + (EMOJI_NAMES[e] || e)).join(', ');
+  }
+  const mentionsMe = (m) => S.member && m.uid !== S.user.uid && new RegExp('@' + S.member.username + '\\b', 'i').test(m.text);
+  async function findMember(name) {
+    const key = name.trim().toLowerCase();
+    if (!key) return null;
+    const n = await db.collection('usernames').doc(key).get().catch(() => null);
+    const uid = n && n.exists ? n.data().uid : null;
+    if (!uid) return null;
+    const m = await db.collection('chat_members').doc(uid).get().catch(() => null);
+    return m && m.exists ? Object.assign({ uid }, m.data()) : null;
+  }
+
+  // ── Signing in ──
+  $('google').onclick = async () => {
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+    catch (e) { if (e.code !== 'auth/popup-closed-by-user') { $('signin-msg').textContent = 'Google sign in failed: ' + e.message; } }
+  };
+  $('email-mode').onclick = () => {
+    S.creating = !S.creating;
+    $('email-h').textContent = S.creating ? 'Create an account with email' : 'Sign in with email';
+    $('email-go').textContent = S.creating ? 'Create account' : 'Sign in';
+    $('email-mode').textContent = S.creating ? 'I already have an account' : 'Create a new account instead';
+    $('password').autocomplete = S.creating ? 'new-password' : 'current-password';
+  };
+  $('email-form').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const email = $('email').value.trim(), pw = $('password').value;
+    try {
+      if (S.creating) {
+        if (pw.length < 6) throw { code: 'short' };
+        await createUserWithEmailAndPassword(auth, email, pw);
+      } else {
+        await signInWithEmailAndPassword(auth, email, pw);
+      }
+    } catch (e) {
+      const m = { 'short': 'The password needs at least 6 characters.', 'auth/email-already-in-use': 'That email already has an account. Sign in instead.',
+                  'auth/invalid-email': "That email address isn't valid.", 'auth/invalid-credential': 'Wrong email or password.',
+                  'auth/wrong-password': 'Wrong email or password.', 'auth/user-not-found': 'No account with that email. Create one instead.' }[e.code];
+      $('signin-msg').textContent = m || ("Couldn't sign in: " + (e.message || e.code));
+    }
+  };
+  $('forgot').onclick = async () => {
+    const email = $('email').value.trim();
+    if (!email) { $('signin-msg').textContent = 'Type your email address first.'; return; }
+    try { await sendPasswordResetEmail(auth, email); $('signin-msg').textContent = 'A password reset email is on its way to ' + email + '.'; }
+    catch (e) { $('signin-msg').textContent = "Couldn't send the reset email. Check the address."; }
+  };
+  document.querySelectorAll('.signout').forEach(b => b.onclick = () => signOut(auth));
+
+  // ── Joining ──
+  $('join-form').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const name = $('username').value.trim();
+    const p = usernameProblem(name);
+    if (p && !(isDev() && name.toLowerCase() === 'leonardo')) { $('join-msg').textContent = p; return; }
+    const uid = S.user.uid;
+    const ref = db.collection('usernames').doc(name.toLowerCase());
+    const snap = await ref.get().catch(() => null);
+    if (snap && snap.exists && snap.data().uid !== uid) { $('join-msg').textContent = 'Someone already has that username. Try another.'; return; }
+    const b = db.batch();
+    b.set(ref, { uid, username: name });
+    b.set(db.collection('chat_members').doc(uid), { username: name, createdAt: TS(), lastPostAt: TS(), dmOff: false });
+    try {
+      await b.commit();
+      db.collection('users').doc(uid).set({ username: name }, { merge: true }).catch(() => {});
+    } catch (e) { $('join-msg').textContent = "Couldn't save that username. Check your connection and try again."; }
+  };
+  $('rules-list').append(...RULES.map(r => el('li', { text: r })));
+  $('agree').onclick = () => db.collection('chat_members').doc(S.user.uid).update({ agreedAt: TS() });
+
+  // ── Live data ──
+  function stopAll() { S.unsubs.forEach(u => u()); S.unsubs = []; closeRoom(); if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = null; } }
+  onAuthStateChanged(auth, async (u) => {
+    stopAll();
+    S.user = u; S.member = null;
+    if (!u) { show('signin'); return; }
+    show('loading');
+    const uid = u.uid;
+    const profile = await db.collection('users').doc(uid).get().catch(() => null);
+    const gameName = profile && profile.exists ? profile.data().username : null;
+    if (gameName) { $('username').value = gameName; $('join-text').textContent = 'Your username in Dungeon Descent is ' + gameName + '. Use it here too, so friends know it\'s you.'; }
+    S.unsubs.push(db.collection('chat_members').doc(uid).onSnapshot(d => {
+      S.member = d.exists ? d.data() : null;
+      if (!S.member) show('join');
+      else if (!S.member.agreedAt) show('rules');
+      else { show('app'); renderAll(); startPresence(); }
+    }));
+    S.unsubs.push(db.collection('chat_bans').doc(uid).onSnapshot(d => { S.banned = d.exists; renderAll(); }, () => {}));
+    S.unsubs.push(db.collection('chat_channels').onSnapshot(s => {
+      S.channels = s.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name));
+      renderAll();
+    }, () => {}));
+    S.unsubs.push(db.collection('chat_dms').where('members', 'array-contains', uid).onSnapshot(s => {
+      S.dms = s.docs.map(d => { const x = d.data(); const other = x.members.find(m => m !== uid);
+        return { kind: 'dm', id: d.id, title: (x.names || {})[other] || 'Player', path: 'chat_dms/' + d.id, members: x.names || {}, other, lastAt: x.lastAt && x.lastAt.toDate() };
+      }).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+      renderAll();
+    }, () => {}));
+    S.unsubs.push(db.collection('chat_groups').where(new FieldPath('members', uid), '>', '').onSnapshot(s => {
+      S.groups = s.docs.map(d => { const x = d.data();
+        return { kind: 'group', id: d.id, title: x.name, path: 'chat_groups/' + d.id, members: x.members || {}, owner: x.owner, lastAt: x.lastAt && x.lastAt.toDate() };
+      }).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+      renderAll();
+      if (S.room && S.room.kind === 'group') { const g = S.groups.find(x => x.id === S.room.id); if (g) { S.room = g; renderGroupInfo(); } else { say('You are no longer in this group.'); closeRoom(); } }
+    }, () => {}));
+    S.unsubs.push(db.collection('chat_members').doc(uid).collection('blocks').onSnapshot(s => {
+      S.blocked = {}; s.docs.forEach(d => { S.blocked[d.id] = d.data().name || 'Player'; });
+      renderAll(); renderMessages(false);
+    }, () => {}));
+  });
+
+  // ── Online: check in every minute while the page is open and visible ──
+  let presenceTimer = null;
+  const showOnline = () => { try { return localStorage.getItem('chat.showOnline') !== 'no'; } catch (e) { return true; } };
+  async function beat() {
+    if (!S.user || !S.member) return;
+    await db.collection('chat_members').doc(S.user.uid).update({ lastSeen: showOnline() && !document.hidden ? TS() : deleteField() }).catch(() => {});
+    refreshOnline();
+  }
+  async function refreshOnline() {
+    const s = await db.collection('chat_members').where('lastSeen', '>', new Date(Date.now() - 150000)).orderBy('lastSeen', 'desc').limit(200).get().catch(() => null);
+    if (!s) return;
+    S.online = s.docs.map(d => d.data().username).filter(n => n && !Object.values(S.blocked).includes(n)).sort((a, b) => a.localeCompare(b));
+    $('online-count').textContent = S.online.length + (S.online.length === 1 ? ' player online' : ' players online');
+    $('online-list').replaceChildren(...(S.online.length ? S.online.map(n => el('li', { text: n })) : [el('li', { class: 'muted', text: 'Nobody else is online right now.' })]));
+  }
+  function startPresence() {
+    if (presenceTimer) return;
+    beat();
+    presenceTimer = setInterval(beat, 60000);
+  }
+  document.addEventListener('visibilitychange', () => { if (S.member) beat(); });
+
+  // ── Lists ──
+  document.querySelectorAll('nav button').forEach(b => b.onclick = () => { closeRoom(); S.tab = b.dataset.tab; renderAll(); });
+  function renderAll() {
+    if ($('app').hidden) return;
+    document.querySelectorAll('nav button').forEach(b => {
+      if (b.dataset.tab === S.tab && !S.room) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    $('banned-note').hidden = !S.banned;
+    for (const t of ['channels', 'dms', 'groups', 'settings']) $('tab-' + t).hidden = !!S.room || S.tab !== t;
+    $('room').hidden = !S.room;
+    $('dev-channel-tools').hidden = !isDev();
+    const ch = $('channel-list'); ch.replaceChildren();
+    const mine = pref('myPinned', []);
+    const visible = S.channels.filter(c => !c.testersOnly || isTester());
+    const ordered = mine.map(id => visible.find(c => c.id === id)).filter(Boolean).concat(visible.filter(c => !mine.includes(c.id)));
+    for (const c of ordered) {
+      const pinnedHere = mine.includes(c.id);
+      const label = (pinnedHere ? '📌 ' : '') + '# ' + c.name + (c.topic ? '. ' + c.topic : '') + (c.modsPost ? '. Read only' : '') + (c.testersOnly ? '. Testers only' : '');
+      const li = el('li', {}, el('button', { class: 'open', text: label, onclick: () => openRoom({ kind: 'channel', id: c.id, title: c.name, topic: c.topic, path: 'chat_channels/' + c.id, canPost: !c.modsPost || isMod() }) }));
+      li.append(el('button', { text: pinnedHere ? 'Unpin' : 'Pin to top', 'aria-label': (pinnedHere ? 'Unpin ' : 'Pin to top: ') + c.name, onclick: () => {
+        setPref('myPinned', pinnedHere ? mine.filter(x => x !== c.id) : mine.concat(c.id)); renderAll(); say(pinnedHere ? 'Unpinned.' : 'Pinned to the top.');
+      } }));
+      if (isDev()) li.append(el('div', { class: 'row' },
+        el('button', { text: 'Edit', 'aria-label': 'Edit ' + c.name, onclick: () => editChannel(c) }),
+        el('button', { text: 'Move up', 'aria-label': 'Move ' + c.name + ' up', onclick: () => moveChannel(c, -1) }),
+        el('button', { text: 'Move down', 'aria-label': 'Move ' + c.name + ' down', onclick: () => moveChannel(c, 1) }),
+        el('button', { class: 'danger', text: 'Delete', 'aria-label': 'Delete ' + c.name, onclick: () => deleteChannel(c) })));
+      ch.append(li);
+    }
+    if (!S.channels.length) ch.append(el('li', { text: 'Loading channels…' }));
+    const dl = $('dm-list'); dl.replaceChildren();
+    for (const r of S.dms.filter(r => !S.blocked[r.other])) dl.append(el('li', {}, el('button', { class: 'open', text: r.title, onclick: () => openRoom(r) })));
+    if (!S.dms.length) dl.append(el('li', { class: 'muted', text: 'No private messages yet. Type a username above, or use "Message privately" on someone\'s message.' }));
+    const gl = $('group-list'); gl.replaceChildren();
+    for (const g of S.groups) { const n = Object.keys(g.members).length;
+      gl.append(el('li', {}, el('button', { class: 'open', text: g.title + ', ' + n + (n === 1 ? ' person' : ' people'), onclick: () => openRoom(g) }))); }
+    if (!S.groups.length) gl.append(el('li', { class: 'muted', text: 'No groups yet. Make one above, then add people by their username.' }));
+    if (S.tab === 'settings' && !S.room) renderSettings();
+  }
+
+  $('new-dm').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const m = await findMember($('dm-name').value);
+    if (!m) { say('No chat member is called ' + $('dm-name').value + '.'); return; }
+    $('dm-name').value = '';
+    openDM(m.uid, m.username);
+  };
+  async function openDM(other, name) {
+    const uid = S.user.uid;
+    if (other === uid) { say("That's you."); return; }
+    const pid = pairID(uid, other);
+    const room = { kind: 'dm', id: pid, title: name, path: 'chat_dms/' + pid, members: { [uid]: S.member.username, [other]: name }, other };
+    const snap = await db.doc(room.path).get().catch(() => null);
+    if (!(snap && snap.exists)) {
+      try { await db.doc(room.path).set({ members: [uid, other].sort(), names: room.members, lastAt: TS() }); }
+      catch (e) {
+        const created = S.member.createdAt && S.member.createdAt.toDate();
+        say(!S.member.trusted && !isMod() && created && Date.now() - created < 864e5
+          ? 'New accounts can start private conversations after one day. You can still answer anyone who messages you.'
+          : name + " isn't taking private messages right now.");
+        return;
+      }
+    }
+    openRoom(room);
+  }
+  $('new-group').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const name = $('group-name').value.trim();
+    if (!name || name.length > 40) { say('A group name needs 1 to 40 characters.'); return; }
+    if (BAD.test(name)) { say("That group name has a word that isn't allowed."); return; }
+    const ref = db.collection('chat_groups').doc();
+    try {
+      await ref.set({ name, owner: S.user.uid, members: { [S.user.uid]: S.member.username }, createdAt: TS(), lastAt: TS() });
+      $('group-name').value = '';
+      say('Group created. Use the group info to add people.');
+      openRoom({ kind: 'group', id: ref.id, title: name, path: 'chat_groups/' + ref.id, members: { [S.user.uid]: S.member.username }, owner: S.user.uid });
+    } catch (e) { say('Couldn\'t make the group.' + (!S.member.trusted && !isMod() ? ' New accounts can make groups after one day.' : '')); }
+  };
+
+  // ── One room ──
+  $('back').onclick = () => { closeRoom(); renderAll(); };
+  function closeRoom() { if (S.roomUnsub) S.roomUnsub(); S.roomUnsub = null; S.room = null; S.messages = []; S.replyTo = null; }
+  function openRoom(room) {
+    closeRoom();
+    S.room = Object.assign({ canPost: true }, room);
+    renderAll();
+    $('room-title').textContent = room.kind === 'channel' ? '# ' + room.title : room.title;
+    $('room-topic').textContent = room.topic || (room.kind === 'dm' ? 'Private conversation' : room.kind === 'group' ? 'Group chat' : '');
+    const posting = S.room.canPost && !S.banned;
+    $('composer').hidden = !posting;
+    $('readonly-note').hidden = posting;
+    $('readonly-note').textContent = S.banned ? "You're banned from posting." : 'Only moderators post here.';
+    $('draft-label').textContent = room.kind === 'channel' ? 'Message #' + room.title : 'Message ' + room.title;
+    $('send-msg').textContent = ''; setReply(null);
+    renderGroupInfo();
+    let first = true;
+    S.roomUnsub = db.collection(room.path + '/messages').orderBy('ts', 'desc').limit(100).onSnapshot(s => {
+      const list = s.docs.map(d => { const x = d.data(); return { id: d.id, uid: x.uid, username: x.username, text: x.text, date: x.ts && x.ts.toDate(), replyTo: x.replyTo, reactions: x.reactions || {}, pinned: !!x.pinned }; }).reverse();
+      const fresh = list.filter(m => !S.messages.some(o => o.id === m.id));
+      S.messages = list;
+      renderMessages(true);
+      if (!first) for (const m of fresh) if (m.uid !== S.user.uid && !S.blocked[m.uid]) {
+        if (mentionsMe(m)) say(m.username + ' mentioned you: ' + m.text);
+        else if (pref('readAloud', true)) say(m.username + ': ' + m.text);
+      }
+      first = false;
+    }, () => say("Couldn't load this conversation."));
+    $('profile').hidden = true;
+    loadPinned();
+    $('room-title').focus();
+  }
+  async function loadPinned() {
+    const box = $('pinned-box');
+    box.hidden = true;
+    if (!S.room || S.room.kind !== 'channel') return;
+    const s = await db.collection(S.room.path + '/messages').where('pinned', '==', true).limit(20).get().catch(() => null);
+    if (!s || s.empty) return;
+    $('pinned-title').textContent = '📌 Pinned (' + s.size + ')';
+    $('pinned-list').replaceChildren(...s.docs.map(d => el('li', { text: d.data().username + ': ' + d.data().text })));
+    box.hidden = false;
+  }
+  async function showProfile(uid) {
+    const box = $('profile');
+    const d = await db.collection('chat_members').doc(uid).get().catch(() => null);
+    box.replaceChildren();
+    if (!d || !d.exists) { box.append(el('p', { text: "This player isn't in chat anymore." })); box.hidden = false; return; }
+    const m = d.data();
+    const seen = m.lastSeen && m.lastSeen.toDate ? m.lastSeen.toDate() : null;
+    const board = await db.collection('leaderboard').doc(uid).get().catch(() => null);
+    const role = uid === DEV ? 'Developer' : m.mod ? 'Moderator' : m.tester ? 'Tester' : 'Member';
+    box.append(el('h3', { text: m.username, tabindex: '-1', id: 'profile-name' }),
+      el('p', { text: 'Role: ' + role + '. ' + (seen && Date.now() - seen < 150000 ? 'Online now.' : 'Offline.') }),
+      el('p', { text: (m.createdAt && m.createdAt.toDate ? 'Joined chat ' + m.createdAt.toDate().toLocaleDateString() + '. ' : '')
+                    + (board && board.exists && board.data().score ? 'High Score ' + Number(board.data().score).toLocaleString() + '.' : '') }));
+    const acts = el('div', { class: 'row' });
+    if (uid !== S.user.uid) {
+      acts.append(el('button', { text: 'Message ' + m.username + ' privately', onclick: () => openDM(uid, m.username) }));
+      if (!S.blocked[uid]) acts.append(el('button', { class: 'danger', text: 'Block ' + m.username, onclick: () => block(uid, m.username) }));
+    }
+    acts.append(el('button', { text: 'Close profile', onclick: () => { box.hidden = true; $('room-title').focus(); } }));
+    box.append(acts);
+    box.hidden = false;
+    $('profile-name').focus();
+  }
+  function renderMessages(scroll) {
+    const box = $('messages'); if (!S.room) return;
+    box.replaceChildren();
+    for (const m of S.messages.filter(m => !S.blocked[m.uid])) {
+      const reply = m.replyTo && S.messages.find(o => o.id === m.replyTo);
+      const li = el('li', { class: 'msg' });
+      if (reply) li.append(el('div', { class: 'reply', text: 'Replying to ' + reply.username + ': ' + reply.text.slice(0, 80) }));
+      li.append(el('span', { class: 'who', text: m.username }), document.createTextNode(': '),
+                el(mentionsMe(m) ? 'strong' : 'span', { text: m.text }),
+                document.createTextNode(' '), el('span', { class: 'when', text: ago(m.date) }));
+      if (mentionsMe(m)) li.append(el('span', { class: 'sr-only', text: ' Mentions you.' }));
+      if (m.pinned) li.append(el('span', { class: 'muted', text: ' 📌 Pinned' }));
+      if (Object.keys(m.reactions).length) li.append(el('div', { class: 'muted', text: 'Reactions: ' + reactionText(m.reactions) }));
+      const acts = el('div', { class: 'row' });
+      const mine = m.uid === S.user.uid;
+      if (S.room.canPost && !S.banned) acts.append(el('button', { text: 'Reply', onclick: () => { setReply(m); $('draft').focus(); } }));
+      if (!S.banned) for (const e of EMOJIS) acts.append(el('button', { text: e, 'aria-label': 'React ' + EMOJI_NAMES[e] + (m.reactions[S.user.uid] === e ? ', chosen' : ''),
+        onclick: async () => {
+          const remove = m.reactions[S.user.uid] === e;
+          await db.collection(S.room.path + '/messages').doc(m.id).update(new FieldPath('reactions', S.user.uid), remove ? deleteField() : e)
+            .then(() => say(remove ? 'Reaction removed.' : 'Reacted ' + EMOJI_NAMES[e] + '.')).catch(() => say("Couldn't react."));
+        } }));
+      if (m.uid !== 'hall-of-legends') acts.append(el('button', { text: m.uid === S.user.uid ? 'View your profile' : 'View ' + m.username + "'s profile", onclick: () => showProfile(m.uid) }));
+      if (isMod() && S.room.kind === 'channel') acts.append(el('button', { text: m.pinned ? 'Unpin message' : 'Pin message', onclick: async () => {
+        await db.collection(S.room.path + '/messages').doc(m.id).update({ pinned: !m.pinned }).then(() => { say(m.pinned ? 'Unpinned.' : 'Pinned.'); loadPinned(); }).catch(() => say("Couldn't change the pin."));
+      } }));
+      if (!mine && m.uid !== 'hall-of-legends') {
+        if (S.room.kind !== 'dm') acts.append(el('button', { text: 'Message ' + m.username + ' privately', onclick: () => openDM(m.uid, m.username) }));
+        acts.append(el('button', { text: 'Report', onclick: () => report(m) }));
+        acts.append(el('button', { text: 'Block ' + m.username, onclick: () => block(m.uid, m.username) }));
+      }
+      if (mine || (isMod() && S.room.kind === 'channel'))
+        acts.append(el('button', { class: 'danger', text: 'Delete message', onclick: async () => {
+          if (!confirm('Delete this message?')) return;
+          try { await db.collection(S.room.path + '/messages').doc(m.id).delete(); say('Message deleted.'); } catch (e) { say("Couldn't delete it."); }
+        } }));
+      if (isMod() && S.room.kind === 'channel' && !mine)
+        acts.append(el('button', { class: 'danger', text: 'Ban ' + m.username, onclick: () => ban(m.uid, m.username + ': in #' + S.room.title + ', "' + m.text.slice(0, 80) + '"', m.username) }));
+      li.append(el('details', {}, el('summary', { text: 'Options', 'aria-label': 'Options for ' + m.username + "'s message" }), acts));
+      box.append(li);
+    }
+    if (!S.messages.length) box.append(el('li', { class: 'muted', text: 'No messages yet. Say hello!' }));
+    if (scroll) box.scrollTop = box.scrollHeight;
+  }
+  function setReply(m) {
+    S.replyTo = m;
+    $('replying').hidden = !m; $('cancel-reply').hidden = !m;
+    $('replying').textContent = m ? 'Replying to ' + m.username : '';
+  }
+  $('cancel-reply').onclick = () => setReply(null);
+  $('draft').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); } });
+  let lastSent = 0;
+  $('composer').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const text = $('draft').value.trim();
+    const fail = (t) => { $('send-msg').textContent = t; say(t); };
+    if (!text) return fail('Type a message first.');
+    if (BAD.test(text)) return fail("That message has a word that isn't allowed here. Change it and try again.");
+    // At most a message every 2 seconds (the rules count from your last post,
+    // or from joining), so wait out what's left instead of failing.
+    const last = Math.max(lastSent, S.member.lastPostAt && S.member.lastPostAt.toDate ? S.member.lastPostAt.toDate().getTime() : 0);
+    const wait = 2300 - (Date.now() - last);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    const b = db.batch();
+    const data = { uid: S.user.uid, username: S.member.username, text, ts: TS() };
+    if (S.replyTo) data.replyTo = S.replyTo.id;
+    b.set(db.collection(S.room.path + '/messages').doc(), data);
+    b.update(db.collection('chat_members').doc(S.user.uid), { lastPostAt: TS() });
+    try {
+      await b.commit();
+      lastSent = Date.now();
+      if (S.room.kind !== 'channel') db.doc(S.room.path).update({ lastAt: TS() }).catch(() => {});
+      notifyPush(S.room);
+      $('draft').value = ''; setReply(null); $('send-msg').textContent = '';
+      say('Sent.');
+    } catch (e) {
+      fail(S.room.kind === 'dm' ? "Couldn't send. This player may have turned private messages off or blocked you." : "Couldn't send. Check your connection and try again.");
+    }
+  };
+
+  // Tells the push server about the message just sent, so people who asked
+  // get a notification on their phone (the iPhone app does the same).
+  const PUSH_URL = 'https://us-central1-dungeon-descent-fbaf2.cloudfunctions.net/chatPush';
+  async function notifyPush(room) {
+    if (/[?&]emulator\b/.test(location.search)) return;
+    try {
+      const token = await auth.currentUser.getIdToken();
+      await fetch(PUSH_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ kind: room.kind, room: room.id }) });
+    } catch (e) { /* notifications are best effort */ }
+  }
+
+  // ── Groups ──
+  function renderGroupInfo() {
+    const box = $('group-info');
+    const g = S.room;
+    box.hidden = !g || g.kind !== 'group';
+    if (box.hidden) return;
+    box.replaceChildren();
+    const owner = g.owner === S.user.uid;
+    const ids = Object.keys(g.members).sort((a, b) => g.members[a].localeCompare(g.members[b]));
+    box.append(el('h3', { text: 'Group info: ' + ids.length + ' of 20 people' }));
+    const ul = el('ul', { class: 'list' });
+    for (const id of ids) {
+      const li = el('li', { text: g.members[id] + (id === g.owner ? ' (owner)' : '') + ' ' });
+      if (owner && id !== g.owner) li.append(el('button', { class: 'danger', text: 'Remove', 'aria-label': 'Remove ' + g.members[id], onclick: async () => {
+        await db.doc(g.path).update(new FieldPath('members', id), deleteField())
+          .then(() => say(g.members[id] + ' removed.')).catch(() => say("Couldn't remove them."));
+      } }));
+      ul.append(li);
+    }
+    box.append(ul);
+    if (owner) {
+      const add = el('form', { class: 'row' }, el('label', { for: 'add-member', class: 'sr-only', text: 'Username to add' }),
+        el('input', { id: 'add-member', placeholder: 'Username to add', style: 'flex:1' }), el('button', { type: 'submit', text: 'Add' }));
+      add.onsubmit = async (ev) => {
+        ev.preventDefault();
+        const name = $('add-member').value;
+        const m = await findMember(name);
+        if (!m) { say('No chat member is called ' + name + '.'); return; }
+        if (ids.length >= 20) { say('Groups can have up to 20 people.'); return; }
+        try {
+          await db.doc(g.path).update(new FieldPath('members', m.uid), m.username, 'added', m.uid);
+          say(m.username + ' added.');
+        } catch (e) { say(m.username + " can't be added. They may have private messages off."); }
+      };
+      const ren = el('form', { class: 'row' }, el('label', { for: 'rename-group', class: 'sr-only', text: 'New group name' }),
+        el('input', { id: 'rename-group', placeholder: 'New group name', maxlength: '40', style: 'flex:1' }), el('button', { type: 'submit', text: 'Rename' }));
+      ren.onsubmit = async (ev) => {
+        ev.preventDefault();
+        const n = $('rename-group').value.trim();
+        if (!n || BAD.test(n)) { say("That name can't be used."); return; }
+        await db.doc(g.path).update({ name: n }).then(() => { say('Renamed.'); $('room-title').textContent = n; }).catch(() => say("Couldn't rename the group."));
+      };
+      box.append(add, ren);
+    }
+    const leaveText = owner && ids.length === 1 ? 'Delete group' : 'Leave group';
+    box.append(el('button', { class: 'danger', text: leaveText, onclick: async () => {
+      if (!confirm(leaveText + '?')) return;
+      try {
+        if (owner) {
+          const next = ids.find(i => i !== S.user.uid);
+          if (!next) { await db.doc(g.path).delete(); say('Group deleted.'); closeRoom(); renderAll(); return; }
+          await db.doc(g.path).update({ owner: next });
+        }
+        await db.doc(g.path).update(new FieldPath('members', S.user.uid), deleteField());
+        say('You left the group.'); closeRoom(); renderAll();
+      } catch (e) { say("Couldn't leave the group."); }
+    } }));
+  }
+
+  // ── Safety ──
+  async function report(m) {
+    const reason = prompt('Report this message from ' + m.username + ". What's wrong? (optional)", '');
+    if (reason === null) return;
+    const i = S.messages.findIndex(x => x.id === m.id);
+    const around = S.messages.slice(Math.max(0, i - 5), i + 3).map(x => x.username + ': ' + x.text);
+    try {
+      await db.collection('chat_reports').add({ by: S.user.uid, byName: S.member.username, kind: S.room.kind, path: S.room.path + '/messages/' + m.id,
+        author: m.uid, authorName: m.username, text: m.text, context: around, reason: reason.slice(0, 500), at: TS() });
+      say('Report sent. A moderator will look at it within 24 hours.');
+    } catch (e) { say("The report couldn't be sent. Check your connection."); }
+  }
+  async function block(uid, name) {
+    if (!confirm('Block ' + name + "? You won't see their messages, and they can't message you or add you to groups.")) return;
+    await db.collection('chat_members').doc(S.user.uid).collection('blocks').doc(uid).set({ name, at: TS() });
+    say(name + ' is blocked.');
+  }
+  async function ban(uid, reason, name) {
+    if (!confirm('Ban ' + name + ' from chat?')) return false;
+    try { await db.collection('chat_bans').doc(uid).set({ by: S.user.uid, reason, at: TS() }); say(name + ' is banned from chat.'); return true; }
+    catch (e) { say("Couldn't ban " + name + '.'); return false; }
+  }
+
+  // ── Channels (the developer only) ──
+  function slug(n) { return n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+  $('new-channel').onclick = () => editChannel(null);
+  async function editChannel(c) {
+    const name = prompt(c ? 'Channel name' : 'New channel name, like co-op-rooms', c ? c.name : '');
+    if (name === null) return;
+    const id = slug(name);
+    if (!id || id.length > 40) { say('A channel name needs 1 to 40 letters or numbers.'); return; }
+    if (!c && S.channels.some(x => x.id === id)) { say('There is already a channel called ' + id + '.'); return; }
+    const topic = prompt('Topic (optional)', c ? c.topic || '' : '');
+    if (topic === null) return;
+    const modsPost = confirm('Only moderators can post in #' + id + '? OK for yes, Cancel for no.');
+    const testersOnly = confirm('Only testers can see #' + id + '? OK for yes, Cancel for no.');
+    const data = { name: id, topic: topic.slice(0, 120), modsPost, testersOnly };
+    if (!c) data.order = Math.max(0, ...S.channels.map(x => x.order || 0)) + 1;
+    try { await db.collection('chat_channels').doc(c ? c.id : id).set(data, { merge: true }); say(c ? 'Channel saved.' : 'Channel created.'); }
+    catch (e) { say("Couldn't save the channel."); }
+  }
+  async function moveChannel(c, dir) {
+    const i = S.channels.indexOf(c), o = S.channels[i + dir];
+    if (!o) return;
+    const b = db.batch();
+    b.update(db.collection('chat_channels').doc(c.id), { order: o.order === c.order ? c.order + dir : o.order });
+    b.update(db.collection('chat_channels').doc(o.id), { order: c.order });
+    await b.commit().then(() => say('Moved.')).catch(() => say("Couldn't move it."));
+  }
+  async function deleteChannel(c) {
+    if (!confirm('Delete #' + c.name + ' for everyone?')) return;
+    await db.collection('chat_channels').doc(c.id).delete().then(() => say('Channel deleted.')).catch(() => say("Couldn't delete it."));
+  }
+
+  // ── Settings ──
+  function renderSettings() {
+    const box = $('tab-settings'); box.replaceChildren();
+    const role = isDev() ? ', developer' : isMod() ? ', moderator' : isTester() ? ', tester' : '';
+    box.append(el('h2', { text: 'Settings' }), el('p', { text: 'Signed in as ' + S.member.username + role }),
+               el('p', { class: 'muted', text: 'User ID: ' + S.user.uid }));
+    const dm = el('input', { type: 'checkbox', id: 'dm-on', style: 'width:auto' });
+    dm.checked = S.member.dmOff !== true;
+    dm.onchange = () => db.collection('chat_members').doc(S.user.uid).update({ dmOff: !dm.checked }).then(() => say(dm.checked ? 'Private messages on.' : 'Private messages off.'));
+    box.append(el('div', { class: 'card row' }, dm, el('label', { for: 'dm-on', text: 'Accept private messages', style: 'margin:0' })));
+    const on = el('input', { type: 'checkbox', id: 'online-on', style: 'width:auto' });
+    on.checked = showOnline();
+    on.onchange = () => { try { localStorage.setItem('chat.showOnline', on.checked ? 'yes' : 'no'); } catch (e) {} beat(); say(on.checked ? 'Others can see you online.' : "You're hidden from the online list."); };
+    box.append(el('div', { class: 'card row' }, on, el('label', { for: 'online-on', text: 'Show me as online', style: 'margin:0' })));
+    const ra = el('input', { type: 'checkbox', id: 'read-aloud', style: 'width:auto' });
+    ra.checked = pref('readAloud', true);
+    ra.onchange = () => { setPref('readAloud', ra.checked); say(ra.checked ? 'New messages will be read aloud.' : 'New messages won\'t be read aloud, except ones that mention you.'); };
+    box.append(el('div', { class: 'card row' }, ra, el('label', { for: 'read-aloud', text: 'Read new messages aloud (messages that mention you always are)', style: 'margin:0' })));
+    const bl = el('div', { class: 'card' }, el('h3', { text: 'Blocked players (' + Object.keys(S.blocked).length + ')' }));
+    if (!Object.keys(S.blocked).length) bl.append(el('p', { class: 'muted', text: "You haven't blocked anyone." }));
+    for (const [id, name] of Object.entries(S.blocked))
+      bl.append(el('div', { class: 'row' }, el('span', { text: name }), el('button', { text: 'Unblock', 'aria-label': 'Unblock ' + name,
+        onclick: () => db.collection('chat_members').doc(S.user.uid).collection('blocks').doc(id).delete().then(() => say(name + ' is unblocked.')) })));
+    box.append(bl);
+    if (isMod()) box.append(modTools());
+    box.append(el('div', { class: 'card' }, el('h3', { text: 'Account' }),
+      el('div', { class: 'row' },
+        el('button', { text: 'Sign out', onclick: () => signOut(auth) }),
+        el('button', { class: 'danger', text: 'Delete my chat profile', onclick: deleteChatProfile }),
+        el('button', { class: 'danger', text: 'Delete my whole Dungeon Descent account', onclick: deleteWholeAccount })),
+      el('p', { class: 'muted' }, el('a', { href: 'terms.html', text: 'Terms of Service' }), document.createTextNode(' · '), el('a', { href: 'privacy.html', text: 'Privacy Policy' }),
+                                     document.createTextNode(' · '), el('a', { href: 'support.html', text: 'Contact support' }))));
+  }
+  function modTools() {
+    const box = el('div', { class: 'card' }, el('h3', { text: isDev() ? 'Developer mode (only your account sees this)' : 'Moderator tools' }));
+    // Roles
+    const roles = el('form', { class: 'row' }, el('label', { for: 'role-name', class: 'sr-only', text: 'Find a member by username' }),
+      el('input', { id: 'role-name', placeholder: 'Find a member by username', style: 'flex:1' }), el('button', { type: 'submit', text: 'Find' }));
+    const roleOut = el('div');
+    roles.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const m = await findMember($('role-name').value);
+      roleOut.replaceChildren();
+      if (!m) { say('No chat member is called ' + $('role-name').value + '.'); return; }
+      const fields = isDev() ? [['mod', 'Moderator'], ['tester', 'Tester'], ['trusted', 'Trusted (no one-day wait)']] : [['tester', 'Tester']];
+      roleOut.append(el('p', { text: m.username }));
+      for (const [f, label] of fields) {
+        const cb = el('input', { type: 'checkbox', id: 'role-' + f, style: 'width:auto' });
+        cb.checked = m[f] === true;
+        cb.onchange = () => db.collection('chat_members').doc(m.uid).update({ [f]: cb.checked }).then(() => say('Saved.')).catch(() => { say("Couldn't change that."); cb.checked = !cb.checked; });
+        roleOut.append(el('div', { class: 'row' }, cb, el('label', { for: 'role-' + f, text: label, style: 'margin:0' })));
+      }
+    };
+    box.append(el('h4', { text: isDev() ? 'Roles: moderators, testers, trusted' : 'Testers' }), roles, roleOut);
+    // Bans
+    const banForm = el('form', {}, el('label', { for: 'ban-name', text: 'Ban by username' }), el('input', { id: 'ban-name' }),
+      el('label', { for: 'ban-reason', text: 'Reason' }), el('input', { id: 'ban-reason' }), el('button', { type: 'submit', class: 'danger', text: 'Ban from chat', style: 'margin-top:8px' }));
+    const banList = el('ul', { class: 'list' });
+    const loadBans = async () => {
+      const s = await db.collection('chat_bans').get().catch(() => null);
+      banList.replaceChildren();
+      if (!s || s.empty) { banList.append(el('li', { class: 'muted', text: 'Nobody is banned.' })); return; }
+      s.docs.forEach(d => banList.append(el('li', { text: (d.data().reason || d.id) + ' ' }, el('button', { text: 'Unban', 'aria-label': 'Unban. ' + (d.data().reason || ''),
+        onclick: () => db.collection('chat_bans').doc(d.id).delete().then(() => { say('Unbanned.'); loadBans(); }) }))));
+    };
+    banForm.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const m = await findMember($('ban-name').value);
+      if (!m) { say('No chat member is called ' + $('ban-name').value + '.'); return; }
+      if (m.uid === S.user.uid) { say("You can't ban yourself."); return; }
+      if (await ban(m.uid, m.username + ': ' + ($('ban-reason').value || 'no reason given'), m.username)) { $('ban-name').value = ''; $('ban-reason').value = ''; loadBans(); }
+    };
+    box.append(el('h4', { text: 'Bans' }), banForm, banList);
+    loadBans();
+    // Reports
+    const repList = el('ul', { class: 'list' });
+    const loadReports = async () => {
+      const s = await db.collection('chat_reports').orderBy('at', 'desc').limit(100).get().catch(() => null);
+      repList.replaceChildren();
+      if (!s || s.empty) { repList.append(el('li', { class: 'muted', text: 'No reports. All clear.' })); return; }
+      for (const d of s.docs) {
+        const r = d.data();
+        const where = r.kind === 'channel' ? 'a channel' : r.kind === 'dm' ? 'a private message' : 'a group';
+        const li = el('li', {}, el('p', { text: r.authorName + ' in ' + where + ': "' + r.text + '"' }),
+          el('p', { class: 'muted', text: (r.reason ? 'Reason: ' + r.reason + '. ' : '') + 'Reported by ' + r.byName + ', ' + ago(r.at && r.at.toDate()) }));
+        if (r.context && r.context.length) li.append(el('details', {}, el('summary', { text: 'Messages around it' }), ...r.context.map(c => el('p', { class: 'muted', text: c }))));
+        const acts = el('div', { class: 'row' });
+        const done = () => db.collection('chat_reports').doc(d.id).delete().then(loadReports);
+        if (r.kind === 'channel') acts.append(el('button', { class: 'danger', text: 'Delete the message', onclick: () => db.doc(r.path).delete().then(() => say('Deleted.')).catch(() => say("Couldn't delete it.")).then(done) }));
+        acts.append(el('button', { class: 'danger', text: 'Ban ' + r.authorName, onclick: async () => { if (await ban(r.author, r.authorName + ': reported, "' + r.text.slice(0, 80) + '"', r.authorName)) done(); } }));
+        acts.append(el('button', { text: 'Dismiss', onclick: done }));
+        li.append(acts);
+        repList.append(li);
+      }
+    };
+    box.append(el('h4', { text: 'Reports' }), el('button', { text: 'Refresh reports', onclick: loadReports }), repList);
+    loadReports();
+    if (isDev()) box.append(el('p', { class: 'muted', text: 'Channels: use New channel on the Channels tab, and Edit, Move or Delete next to each channel.' }));
+    return box;
+  }
+  async function deleteChatData(uid) {
+    const me = db.collection('chat_members').doc(uid);
+    for (const sub of ['blocks', 'private']) {
+      const s = await me.collection(sub).get().catch(() => null);
+      if (s) for (const d of s.docs) await d.ref.delete().catch(() => {});
+    }
+    await me.delete().catch(() => {});
+  }
+  async function deleteChatProfile() {
+    if (!confirm('Delete your chat profile? This removes you from chat. Your Dungeon Descent account, username and game saves are kept.')) return;
+    await deleteChatData(S.user.uid);
+    say('Your chat profile is deleted.');
+    signOut(auth);
+  }
+  async function deleteWholeAccount() {
+    if (!confirm("Delete your whole Dungeon Descent account? This deletes chat, your username, your cloud save and your leaderboard places for good. Saves on your devices stay. This can't be undone.")) return;
+    const u = auth.currentUser, uid = u.uid;
+    await deleteChatData(uid);
+    const profile = await db.collection('users').doc(uid).get().catch(() => null);
+    await db.collection('saves').doc(uid).delete().catch(() => {});
+    const inbox = await db.collection('users').doc(uid).collection('inbox').get().catch(() => null);
+    if (inbox) for (const d of inbox.docs) await d.ref.delete().catch(() => {});
+    await db.collection('users').doc(uid).delete().catch(() => {});
+    await db.collection('leaderboard').doc(uid).delete().catch(() => {});
+    const name = profile && profile.exists ? profile.data().username : null;
+    if (name) await db.collection('usernames').doc(name.toLowerCase()).delete().catch(() => {});
+    try { await u.delete(); say('Your account is deleted.'); }
+    catch (e) { alert('To delete your account, sign out, sign in again, and then delete it right away. For safety, it needs a recent sign in.'); }
+  }
+}
+</script>
+</body>
+</html>

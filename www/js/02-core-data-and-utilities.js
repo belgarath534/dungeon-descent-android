@@ -1198,7 +1198,7 @@ function confirmQuit() {
 //═════════════════
 // CHARACTER STORAGE
 //═════════════════
-var MAX_CHARS = 5;
+var MAX_CHARS = 10;
 var CHARS = []; // real value hydrated in the DDStore.whenReady() callback further down
 
 // ── GLOBAL GOLD SYSTEM ──
@@ -1676,7 +1676,7 @@ function renderCharList() {
   var newBtn = document.getElementById('new-char-btn');
   var limitNote = document.getElementById('char-limit-note');
 
-  if (importBtn) importBtn.style.display = CHARS.length < 5 ? '' : 'none';
+  if (importBtn) importBtn.style.display = CHARS.length < MAX_CHARS ? '' : 'none';
 
   // Clear first, then rebuild after a tick — forces JAWS to invalidate its virtual buffer
   list.innerHTML = '';

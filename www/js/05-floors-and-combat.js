@@ -398,6 +398,9 @@ function showDgPanels(nav, combat, inv) {
 // ── NAVIGATION ──
 function moveRoom(dir) {
   if (DS.inCombat) return;
+  // An event is waiting: say so (moving now used to use up a room without
+  // entering it, which could strand you on the floor).
+  if (typeof _eventPending === 'function' && _eventPending()) { _sayEventPending(); return; }
   if (shouldUse3DMode()) {
     // Self-healing: _roomGraph is normally generated once, lazily, the
     // moment the player first reaches the dungeon screen — but if 3D Mode
@@ -868,12 +871,23 @@ function gunAction() {
       updateGunCombatButton();
     }, 1200);
   } else if (_gunState.shotsLeft > 0) {
+    // Frozen, you can't pull the trigger: the turn passes (a player found that
+    // shooting killed the enemies that freeze you).
+    if (DS.frozen) {
+      DS.frozen = false;
+      addLog('You are frozen and cannot fire! The turn passes.');
+      say('You are frozen and cannot fire. The turn passes.');
+      setCombatBtns(false);
+      setTimeout(function() { if (DS.inCombat && DS.enemy && DS.enemy.hp > 0) doFight('_gunCounter'); }, 600);
+      return;
+    }
     // SHOOT
     _gunState.shotsLeft--;
     var dmg = Math.floor(Math.random() * (gun.dmgMax - gun.dmgMin + 1)) + gun.dmgMin;
     // Apply ATK bonus
     dmg = Math.round(dmg * (1 + (DS.atkBonus || 0) / 100));
     dmg = Math.max(1, dmg);
+    if (typeof prestigeHit === 'function') dmg = prestigeHit(dmg);
 
     DS.enemy.hp = Math.max(0, DS.enemy.hp - dmg);
     updateEnemyBar();

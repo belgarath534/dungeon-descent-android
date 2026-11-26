@@ -96,14 +96,14 @@ function openShop() {
 }
 
 function renderShop() {
-  var nightDisc = shopNightDiscount();
+  var nightDisc = shopNightOn();
   document.getElementById('shop-gold-display').textContent = '💰 ' + DS.gold + 'g' + (nightDisc ? (getActiveEvent() === 'nightmarket' && !isNightTime() ? '  🏮 Night Market — 25% off' : '  🌙 Night Discount Active') : '');
   document.getElementById('shop-msg').textContent = '';
   var list = document.getElementById('shop-items');
   list.innerHTML = '';
   shopSession.forEach(function(item, i) {
-    var rawCost = shopItemCost(item);
-    var finalCost = nightDisc ? Math.floor(rawCost * 0.75) : rawCost;
+    var rawCost = shopItemDayCost(item);
+    var finalCost = shopItemCost(item);
     var canAfford = DS.gold >= finalCost;
     // Row container
     var row = document.createElement('div');
@@ -125,8 +125,10 @@ function renderShop() {
     costEl.className = 'shop-item-cost';
     costEl.setAttribute('aria-hidden','true');
     costEl.textContent = item.sold ? '—' : finalCost + 'g';
-    if (nightDisc && !item.sold) {
-      costEl.innerHTML = '<span style="text-decoration:line-through;color:#555;font-size:0.65rem;">' + item.cost + 'g</span> <span style="color:#6ab0f0;">🌙' + finalCost + 'g</span>';
+    // Crossed out: the daytime price (with Gold Curse), not the base price,
+    // or a cursed potion looked like it went up at night.
+    if (nightDisc && !item.sold && finalCost < rawCost) {
+      costEl.innerHTML = '<span style="text-decoration:line-through;color:#555;font-size:0.65rem;">' + rawCost + 'g</span> <span style="color:#6ab0f0;">🌙' + finalCost + 'g</span>';
     }
     rightEl.appendChild(costEl);
     if (!item.sold) {
@@ -146,26 +148,38 @@ function renderShop() {
   });
 }
 
-// Gold Curse — potions cost double (announced, never applied)
-function shopItemCost(item) {
+// THE MERCHANT'S PRICE, the same everywhere (shown, checked, charged) and the
+// same as the apps (Inventory.price, RunModel.price): the night discount
+// (8 PM to 8 AM, the Night Market, the Longest Night) takes 25% off, rounded
+// down; Gold Curse doubles potions; Market Sprite takes 20% off; a Dwarf 10%.
+// It used to be three different sums: one when the shop opened, one after a
+// refresh (adding the Blacksmith's discount too), one when you paid.
+var SHOP_CURSED_TYPES = { potion: 1, elixir: 1, heal: 1, 'sp-potion': 1 };
+function shopNightOn() { return shopNightDiscount() || (typeof getActiveEvent === 'function' && getActiveEvent() === 'longestnight'); }
+function shopItemPrice(item, night) {
   var c = item.cost || 0;
-  if (DS.runModPotionCostMult && /potion|elixir/.test(item.type || '')) c = c * DS.runModPotionCostMult;
+  if (night) c = Math.floor(c * 0.75);
+  if (DS.runModPotionCostMult && SHOP_CURSED_TYPES[item.type]) c = c * DS.runModPotionCostMult;
+  if (DS.activeSpirit && DS.activeSpirit.isMarketSprite) c = Math.max(1, Math.round(c * 0.80));
+  if (DS.race === 'Dwarf') c = Math.max(1, Math.round(c * 0.90));
   return c;
 }
+// What it costs now, and what it costs in the day (the price the discount is shown off).
+function shopItemCost(item) { return shopItemPrice(item, shopNightOn()); }
+function shopItemDayCost(item) { return shopItemPrice(item, false); }
 
 function buyItem(i) {
   var item = shopSession[i];
   if (!item || item.sold) return;
-  if (DS.runModPotionCostMult && /potion|elixir/.test(item.type || '') && !item._curseCost) { item._curseCost = true; item.cost = shopItemCost(item); }
-  if (DS.gold < item.cost && !(DS.activeSpirit && DS.activeSpirit.isMarketSprite)) {
-    document.getElementById('shop-msg').textContent = 'Not enough gold. You need ' + item.cost + 'g.';
-    say('Not enough gold. You need ' + item.cost + ' gold. You have ' + DS.gold + '.');
+  var dayCost = shopItemDayCost(item);
+  var finalCost = shopItemCost(item);
+  if (DS.gold < finalCost) {
+    document.getElementById('shop-msg').textContent = 'Not enough gold. You need ' + finalCost + 'g.';
+    say('Not enough gold. You need ' + finalCost + ' gold. You have ' + DS.gold + '.');
     return;
   }
-  var finalCost = shopNightDiscount() ? Math.floor(item.cost * 0.75) : item.cost;
   if (DS.activeSpirit && DS.activeSpirit.isMarketSprite) {
-    finalCost = Math.max(1, Math.round(finalCost * 0.80));
-    if (finalCost < item.cost) addLog('Market Sprite negotiates — price reduced to ' + finalCost + 'g!');
+    addLog('Market Sprite negotiates — 20% off.');
     // Mark the discount as spent the moment it's actually used, not just at
     // run victory — otherwise swapping away and back to Market Sprite
     // mid-run (see the reactivation fee in openPauseSpirits()) never
@@ -175,12 +189,7 @@ function buyItem(i) {
       saveChars();
     }
   }
-  if (shopNightDiscount() && finalCost < item.cost) addLog('🌙 Night discount applied — ' + finalCost + 'g instead of ' + item.cost + 'g.');
-  if (DS.gold < finalCost) {
-    document.getElementById('shop-msg').textContent = 'Not enough gold. You need ' + finalCost + 'g.';
-    say('Not enough gold. You need ' + finalCost + ' gold.');
-    return;
-  }
+  if (shopNightOn() && finalCost < dayCost) addLog('🌙 Night discount applied — ' + finalCost + 'g instead of ' + dayCost + 'g.');
   DS.gold -= finalCost; spendGlobalGold(finalCost);
   item.sold = true;
   sfx('sfx-purchase'); vibe(VIBE.shopBuy);
@@ -272,19 +281,28 @@ function renderShopSell() {
     list.innerHTML = '<div style="font-family:Cinzel,serif;font-size:0.68rem;color:#555;padding:8px;">Nothing in inventory to sell.</div>';
     return;
   }
+  // 12.0.2: identical items (name, type and price) are one row with a count;
+  // selling sells one. Ten elixirs were ten rows. The apps do the same.
+  var stacks = [], at = {};
   inv.forEach(function(item, idx) {
+    var key = item.name + '|' + (item.type || '') + '|' + getSellPrice(item);
+    if (at[key] !== undefined) stacks[at[key]].count++;
+    else { at[key] = stacks.length; stacks.push({ item: item, idx: idx, count: 1 }); }
+  });
+  stacks.forEach(function(st) {
+    var item = st.item, idx = st.idx, count = st.count;
     var price = getSellPrice(item);
     var row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1a1a00;';
     row.setAttribute('tabindex','0');
-    row.setAttribute('aria-label', item.name + '. Sell for ' + price + ' gold.');
+    row.setAttribute('aria-label', item.name + (count > 1 ? ', ' + count + ' of them' : '') + '. Sell for ' + price + ' gold.');
     var info = document.createElement('div');
     info.style.cssText = 'flex:1;font-family:Cinzel,serif;font-size:0.68rem;color:#cc9944;';
-    info.textContent = (item.icon||'') + ' ' + item.name;
+    info.textContent = (item.icon||'') + ' ' + item.name + (count > 1 ? ' ×' + count : '');
     var btn = document.createElement('button');
     btn.style.cssText = 'padding:4px 10px;background:#1a0800;border:1px solid #aa6622;color:#cc8844;font-family:Cinzel,serif;font-size:0.62rem;cursor:pointer;';
     btn.textContent = price + 'g';
-    btn.setAttribute('aria-label', 'Sell ' + item.name + ' for ' + price + ' gold');
+    btn.setAttribute('aria-label', count > 1 ? 'Sell one ' + item.name + ' for ' + price + ' gold. You have ' + count : 'Sell ' + item.name + ' for ' + price + ' gold');
     btn.onclick = function() {
       DS.inventory.splice(idx, 1);
       DS.gold += price;
@@ -366,8 +384,7 @@ function renderShopItems() {
   if (!list) return;
   list.innerHTML = '';
   shopSession.forEach(function(item, i) {
-    var discount = getShopDiscount();
-    var finalCost = Math.round(item.cost * (1 - discount));
+    var finalCost = shopItemCost(item);
     var canAfford = DS.gold >= finalCost;
     var div = document.createElement('div');
     div.className = 'shop-item' + (item.sold ? ' sold' : '') + (canAfford ? '' : ' cant-afford');
@@ -1743,7 +1760,7 @@ function ecSubmit() {
   // Fire and forget — same as obituary system
   try {
     if (!window._fbDb && typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
-      window._fbDb = firebase.firestore();
+      window._fbDb = window._ddFirestore();
     }
     var db = window._fbDb;
     if (db) {

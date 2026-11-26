@@ -23,7 +23,7 @@ var COIN_UPGRADES = [
   { id:'cu-ember-ward',     name:'Ember Ward',        icon:'🔥', desc:'Reduce all incoming enemy damage by 2 permanently.',     cost:30 },
   { id:'cu-void-pact',      name:'Void Pact',         icon:'🌑', desc:'+5% chance to find Mystery Coins while exploring dungeons.',cost:30},
   { id:'cu-third-eye',      name:'Third Eye',         icon:'👁', desc:'See enemy HP and special ability before every combat begins.',cost:40},
-  { id:'cu-gamblers-spirit',name:"Gambler's Spirit",  icon:'🎲', desc:'Once per run — double or halve your current gold. Your choice.',cost:20},
+  { id:'cu-gamblers-spirit',name:"Gambler's Spirit",  icon:'🎲', desc:'Once per run — bet the gold you earned this floor on a coin flip: double it or lose half.',cost:20},
   { id:'cu-deaths-bargain', name:"Death's Bargain",   icon:'⚰️', desc:'On death, unleash one final powerful counterattack.',    cost:45 },
   { id:'cu-hunters-mark',   name:"Hunter's Mark",     icon:'🏹', desc:'Your first attack in every combat is always a critical hit.',cost:40},
   { id:'cu-night-blessing', name:'Night Blessing',    icon:'🌙', desc:'During Night Mode gain +5 ATK and +10% gold on all runs.', cost:25 },
@@ -154,7 +154,7 @@ function applyCoinUpgrades() {
     if (!DS._gamblersUsed) {
       DS.inventory.push({ 
         name:"Gambler's Spirit", icon:'🎲', type:'gamblers-spirit', 
-        desc:'Once per run — double or halve your gold. Your choice. No refunds.',
+        desc:'Once per run, outside a fight: bet the gold you earned this floor (up to 5000) on a coin flip. Win, it doubles. Lose, half of it is gone.',
         isGamblersSpirit: true
       });
     }

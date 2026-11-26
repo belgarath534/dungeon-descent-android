@@ -235,8 +235,7 @@ DDStore.whenReady().then(function() {
     try {
       if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
         window._fbAuth = firebase.auth();
-        window._fbDb = firebase.firestore();
-        window._fbDb.settings({ databaseId: 'dungeon-descent' });
+        window._fbDb = window._ddFirestore();
         window._fbRtdb = firebase.database();
         // Init global multiplayer systems AFTER _fbDb is ready
 
@@ -566,6 +565,9 @@ function startSpire() {
   } catch(e) {}
 
   SPIRE.atk = 20 + (ch.atkBonus || 0) + ((persist.level || 1) - 1) * 2 + _spireWepBonus;
+  // 12.0.2: the climb gives XP and levels (saved to the character).
+  SPIRE.level = Math.max(1, persist.level || 1);
+  SPIRE.xp = Math.max(0, persist.xp || 0);
   SPIRE.def = (ch.defBonus || 0) + _spireDefBonus;
   SPIRE.gold = getGlobalGold(); // Sync from global gold
   SPIRE._enemyActive = false;
@@ -873,6 +875,12 @@ function spireGunAction() {
 function spireFloorRewards() {
   if (SPIRE._rewardedFloor === SPIRE.floor) return;
   SPIRE._rewardedFloor = SPIRE.floor;
+  // Each floor's milestone and drops pay once, ever (the same "rewardedFloor"
+  // as the apps): dying sends you back one floor, so dying on floor 10 and
+  // climbing it again rolled its Mystery Coins and diamonds over and over.
+  var _sv = getSpireSave();
+  if (SPIRE.floor <= (_sv.rewardedFloor || 0)) return;
+  if (SPIRE.floor % 10 === 0 || SPIRE_MILESTONES[SPIRE.floor]) { _sv.rewardedFloor = SPIRE.floor; saveSpireData(_sv); }
   // Check milestone
   if (SPIRE_MILESTONES[SPIRE.floor]) {
     var ms = SPIRE_MILESTONES[SPIRE.floor];
@@ -915,6 +923,36 @@ function spireFloorRewards() {
 
 }
 
+// 12.0.2: XP for a Spire kill, as in Endless Descent (20 + 3 a floor, a boss
+// 150 + 5 a floor). Each level gives +25 max HP and +2 attack (what a level
+// counts for when a climb starts), up to 50, and the level and XP are saved
+// to the character for every mode. The apps do the same.
+function spireGainXp(amount) {
+  var lv = SPIRE.level || 1;
+  if (lv >= AFK_MAX_LEVEL) return;
+  SPIRE.xp = (SPIRE.xp || 0) + amount;
+  spireLog('+' + amount + ' XP.', '#aaaaff');
+  var needed = afkXpToLevelUp(lv), ups = 0;
+  while (needed !== null && SPIRE.xp >= needed) {
+    SPIRE.xp -= needed;
+    lv++; ups++;
+    SPIRE.maxHp += 25;
+    SPIRE.hp = Math.min(SPIRE.maxHp, SPIRE.hp + 25);
+    SPIRE.atk += 2;
+    spireLog('⬆ LEVEL UP! Level ' + lv + '. +25 max HP, +2 attack. HP: ' + SPIRE.hp + '/' + SPIRE.maxHp + '.', '#ffdd44');
+    needed = afkXpToLevelUp(lv);
+  }
+  if (lv >= AFK_MAX_LEVEL) SPIRE.xp = 0;
+  SPIRE.level = lv;
+  if (ups) say('Level up! You are now level ' + lv + '. Plus 25 max HP and 2 attack.');
+  var ch = CHARS[SPIRE.charIdx];
+  if (ch && ch.name === SPIRE.charName && lv >= (ch.persistLevel || 1)) {
+    ch.persistLevel = lv;
+    ch.persistXp = SPIRE.xp;
+    saveChars();
+  }
+}
+
 function spireEnemyDefeated() {
   SPIRE._enemyActive = false;
   var e = SPIRE._currentEnemy;
@@ -922,6 +960,7 @@ function spireEnemyDefeated() {
   SPIRE.gold += goldDrop;
   addGlobalGold(goldDrop); // (it was added twice)
   spireLog(e.icon + ' ' + e.name + ' defeated! +' + goldDrop + 'g. Your HP: ' + SPIRE.hp + '/' + SPIRE.maxHp + '.', '#44ff88');
+  spireGainXp(e.isBoss ? 150 + SPIRE.floor * 5 : 20 + SPIRE.floor * 3);
   spireRenderUI();
 
   spireFloorRewards();

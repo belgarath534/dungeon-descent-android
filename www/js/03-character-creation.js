@@ -1416,7 +1416,7 @@ function finalizeChar() {
     // Legacy Mode — track dungeon tier
     dungeonTier: runMode === 'legacy' ? 1 : undefined,
     persistLevel: runMode === 'legacy' ? 1 : undefined,
-    levelCap: runMode === 'legacy' ? 25 : 10
+    levelCap: runMode === 'legacy' ? 50 : 10
   };
   CHARS.push(ch);
   _charIdx = CHARS.length - 1;

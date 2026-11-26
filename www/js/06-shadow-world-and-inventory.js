@@ -1287,28 +1287,37 @@ function useItem(i) {
   } else if (item.type === 'gamblers-spirit') {
     if (DS._gamblersUsed) { say("Gambler's Spirit already used this run."); return; }
     if (DS.inCombat) { say("Cannot gamble during combat."); return; }
+    // 12.2: it bets only the gold earned on this floor (up to 5,000) on a real
+    // coin flip. Before, it doubled your whole wallet at your choice every run,
+    // which let players reach quadrillions of gold.
+    var stake = Math.min(5000, Math.max(0, (DS.gold || 0) - (DS._floorGoldStart != null ? DS._floorGoldStart : (DS.gold || 0))));
+    if (stake <= 0) { say("Gambler's Spirit. You haven't earned gold on this floor yet. Keep it for later."); return; }
     DS._gamblersUsed = true;
     DS.inventory.splice(i, 1);
-    // Ask player: double or halve? — use accessible modal instead of confirm()
-    var doubleAmt = DS.gold * 2;
-    var halveAmt = Math.floor(DS.gold / 2);
     showChoiceModal(
-      "🎲 Gambler's Spirit — Choose Your Fate",
-      "Double your gold (" + DS.gold + " → " + doubleAmt + "g) or halve it (" + DS.gold + " → " + halveAmt + "g). No refunds.",
+      "🎲 Gambler's Spirit",
+      "Bet the " + stake + " gold you earned this floor on a coin flip. Win, it doubles (+" + stake + "). Lose, half of it is gone (-" + Math.floor(stake / 2) + ").",
       [
-        { label: "Double (" + doubleAmt + "g)", action: function() {
-          DS.gold = doubleAmt;
-          addLog("🎲 Gambler's Spirit — DOUBLED! " + DS.gold + " gold!");
-          say("Gambler's Spirit. You doubled your gold. " + DS.gold + " gold.");
-          setEvent('good', "🎲 Gambler's Spirit — Fortune smiles. Gold doubled!");
+        { label: "🎲 Flip the Coin", action: function() {
+          if (Math.random() < 0.5) {
+            DS.gold += stake; addGlobalGold(stake);
+            addLog("🎲 Gambler's Spirit — HEADS! +" + stake + " gold.");
+            say("Gambler's Spirit. You won. Plus " + stake + " gold.");
+            setEvent('good', "🎲 Gambler's Spirit — Fortune smiles. Your " + stake + " gold doubled!");
+          } else {
+            var lost = Math.floor(stake / 2);
+            DS.gold = Math.max(0, DS.gold - lost); spendGlobalGold(lost);
+            addLog("🎲 Gambler's Spirit — TAILS. " + lost + " gold lost.");
+            say("Gambler's Spirit. You lost. " + lost + " gold gone.");
+            setEvent('danger', "🎲 Gambler's Spirit — The coin was cruel. You lost " + lost + " gold.");
+          }
           updateTopBar(); saveProgress();
         }},
-        { label: "Halve (" + halveAmt + "g)", action: function() {
-          DS.gold = halveAmt;
-          addLog("🎲 Gambler's Spirit — HALVED. " + DS.gold + " gold.");
-          say("Gambler's Spirit. You halved your gold. " + DS.gold + " gold.");
-          setEvent('danger', "🎲 Gambler's Spirit — The dice were cruel. Gold halved.");
-          updateTopBar(); saveProgress();
+        { label: "Keep It for Later", action: function() {
+          DS._gamblersUsed = false;
+          DS.inventory.push(item);
+          say("You keep the Gambler's Spirit for later.");
+          renderInv(); saveProgress();
         }}
       ]
     );
@@ -1888,7 +1897,7 @@ function showVictory() {
       saveAchievementStats(gAch);
       awardAchievement('gauntlet_champion');
       DDStore.setItem('dd_gauntlet_best', Date.now());
-      say('THE GAUNTLET IS COMPLETE! All 6 dungeons cleared. You are the Gauntlet Champion.');
+      say('THE GAUNTLET IS COMPLETE! All 6 dungeons cleared. You are the Gauntlet Champion. Title unlocked: Gauntlet Champion. Wear it from Account, Change Title.');
     }
   }
 

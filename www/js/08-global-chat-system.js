@@ -1436,7 +1436,7 @@ function fxReset() {
   DS._fx = { stun: 0, dodge: 0, soften: 1, softenHits: 0, reduce: 0, reduceTurns: 0,
     empower: 1, empowerCount: 0, vuln: 0, vulnTurns: 0, dot: 0, dotTurns: 0,
     buffAtk: 0, buffDef: 0, buffTurns: 0, fightAtk: 0, fightDef: 0, retaliate: 0,
-    confuse: 0, confuseTurns: 0, decay: 0, decayTurns: 0, damageTaken: 0, recentHits: [],
+    confuse: 0, confuseTurns: 0, decay: 0, decayTurns: 0, damageTaken: 0, recentHits: [], permUsed: {},
     enemyMiss: 0, cap: 0, capTurns: 0, unstoppable: 0, regen: 0, regenTurns: 0, thorns: 0, thornsTurns: 0,
     crusade: 0, crusadeTurns: 0, warlord: false, stickyBomb: 0, lethalTempo: 0 };
 }
@@ -1794,6 +1794,14 @@ function fxAfterTaken(e, taken) {
   return false;
 }
 
+// Skills whose bonus adds up each time: permanent stats, rest-of-the-run
+// masteries, and this-fight attack/defense on a free action. They work once per
+// fight. (A this-fight bonus on a skill that gives the enemy its turn, like
+// Shield Bash, still stacks: each one costs a turn.)
+function skillOncePerFight(s) {
+  return !!(s.perm || s.mastery || (s.free && s.fight));
+}
+
 // Runs a skill from SKILL_SPECS. Returns null when the skill has no spec, or
 // { dmg, msg, free, done } (done: the skill already finished the turn).
 function runSkillSpec(skill, e, baseAtk) {
@@ -1869,7 +1877,7 @@ function runSkillSpec(skill, e, baseAtk) {
       var o = Math.floor(Math.random() * 4);
       if (o === 0) { r.msg += ' Destruction!'; dmg += baseAtk * 3; }
       else if (o === 1) { var h = Math.min(30, DS.maxHp - DS.hp); DS.hp += h; r.msg += ' Restoration: +' + h + ' HP.'; }
-      else if (o === 2) { DS.manaShield = (DS.manaShield || 0) + 30; r.msg += ' Protection: a 30-point shield.'; }
+      else if (o === 2) { DS.manaShield = Math.max(DS.manaShield || 0, 30); r.msg += ' Protection: a 30-point shield.'; }
       else { f.stun = Math.max(f.stun, 1); r.msg += ' Control: the enemy is frozen in place.'; }
       break;
   }
@@ -1932,7 +1940,14 @@ function runSkillSpec(skill, e, baseAtk) {
     if (DS.sp > spBefore) r.msg += ' +' + (DS.sp - spBefore) + ' SP.';
   }
   if (s.drainSP) { DS.sp = 0; r.msg += ' All SP consumed.'; }
-  if (s.perm) {
+  // Bonuses that add up (skillOncePerFight) work once per fight. Most are free
+  // actions, so at 0 SP (Apocalypse) they could otherwise be repeated without limit.
+  if (!f.permUsed) f.permUsed = {};
+  var _once = skillOncePerFight(s);
+  var _gained = _once && f.permUsed[skill.effect];
+  if (_gained) r.msg += ' Its bonus was already gained this fight.';
+  else if (_once) f.permUsed[skill.effect] = true;
+  if (s.perm && !_gained) {
     DS.atkBonus += s.perm[0]; DS.defBonus += s.perm[1];
     if (s.perm[2]) { DS.maxHp += s.perm[2]; DS.hp += s.perm[2]; }
     if (s.perm[3]) { DS.maxSp += s.perm[3]; DS.sp += s.perm[3]; }
@@ -1943,7 +1958,7 @@ function runSkillSpec(skill, e, baseAtk) {
     if (s.perm[3]) pp.push('+' + s.perm[3] + ' max SP');
     r.msg += ' Permanent: ' + pp.join(', ') + '.';
   }
-  if (s.fight) {
+  if (s.fight && !_gained) {
     f.fightAtk += s.fight[0]; f.fightDef += s.fight[1];
     DS.atkBonus += s.fight[0]; DS.defBonus += s.fight[1];
     r.msg += ' +' + s.fight[0] + ' attack and +' + s.fight[1] + ' defense this fight.';
@@ -1955,8 +1970,12 @@ function runSkillSpec(skill, e, baseAtk) {
     r.msg += ' ' + [f.buffAtk ? '+' + f.buffAtk + ' attack' : '', f.buffDef ? '+' + f.buffDef + ' defense' : '']
       .filter(Boolean).join(' and ') + ' for ' + f.buffTurns + ' turns.';
   }
-  if (s.shield) { DS.manaShield = (DS.manaShield || 0) + s.shield; r.msg += ' Shield absorbs up to ' + DS.manaShield + ' damage.'; }
-  if (s.dodge) { f.dodge += s.dodge; r.msg += s.dodge === 1 ? ' The next attack will miss you.' : ' The next ' + s.dodge + ' attacks will miss you.'; }
+  // Shields raise the shield to their size; they don't stack. Stacking let free
+  // 0-SP casts under Apocalypse build a shield of tens of thousands.
+  if (s.shield) { DS.manaShield = Math.max(DS.manaShield || 0, s.shield); r.msg += ' Shield absorbs up to ' + DS.manaShield + ' damage.'; }
+  // Dodges and free skills top up instead of stacking, like shields (the old
+  // handlers set them: DS.windStep = true, DS.unlimitedPower = 3).
+  if (s.dodge) { f.dodge = Math.max(f.dodge || 0, s.dodge); r.msg += s.dodge === 1 ? ' The next attack will miss you.' : ' The next ' + s.dodge + ' attacks will miss you.'; }
   if (s.reduce) { f.reduce = s.reduce[0]; f.reduceTurns = s.reduce[1]; r.msg += ' Damage taken -' + Math.round(s.reduce[0] * 100) + '% for ' + s.reduce[1] + ' turns.'; }
   if (s.enemyMiss) { f.enemyMiss = s.enemyMiss; r.msg += ' ' + Math.round(s.enemyMiss * 100) + '% chance the enemy misses.'; }
   if (s.cap) { f.cap = s.cap[0]; f.capTurns = s.cap[1]; r.msg += ' No hit can do more than ' + s.cap[0] + ' for ' + s.cap[1] + ' turns.'; }
@@ -1967,9 +1986,9 @@ function runSkillSpec(skill, e, baseAtk) {
   if (s.warlord) { f.warlord = true; r.msg += ' Kills this fight restore 10 HP and 3 SP.'; }
   if (s.resurrect) { DS.resurrection = true; r.msg += ' You will rise once at 50% HP.'; }
   if (s.retaliate) { f.retaliate = s.retaliate; r.msg += ' Attackers take ' + s.retaliate + ' damage.'; }
-  if (s.freeSkills) { DS.unlimitedPower = (DS.unlimitedPower || 0) + s.freeSkills; r.msg += ' Next skill costs 0 SP.'; }
+  if (s.freeSkills) { DS.unlimitedPower = Math.max(DS.unlimitedPower || 0, s.freeSkills); r.msg += ' Next skill costs 0 SP.'; }
   if (s.empower) { f.empower = s.empower[0]; f.empowerCount = s.empower[1]; r.msg += ' Your next ' + (s.empower[1] === 1 ? 'attack deals' : s.empower[1] + ' attacks deal') + ' ' + s.empower[0] + 'x damage.'; }
-  if (s.mastery) {
+  if (s.mastery && !_gained) {
     DS._skillMastery = (DS._skillMastery || 0) + s.mastery[0];
     DS._allMastery = (DS._allMastery || 0) + s.mastery[1];
     if (s.mastery[2]) DS._halfCostSkills = true;
@@ -2023,6 +2042,10 @@ function useSkill(idx) {
   var skill = unlocked[idx];
   if (DS.sp < skill.spCost) { say('Not enough SP. You need ' + skill.spCost + ' SP but have ' + DS.sp + '.'); return; }
   if (!DS.inCombat) { say('Skills can only be used in combat.'); return; }
+  var _permSpec = SKILL_SPECS[DS.cls + '/' + skill.effect];
+  if (_permSpec && skillOncePerFight(_permSpec) && fxGet().permUsed && fxGet().permUsed[skill.effect]) {
+    say(skill.name + ' can only be used once per fight.'); return;
+  }
   setTimeout(function(){ showDungeonTip('first-skill'); }, 800);
   // Daily Quest — track unique skills used this run (dq-skills-3's 'skilluse'
   // type had no call site anywhere, so that quest could never be completed)
@@ -2821,15 +2844,23 @@ function gainXP(amount) {
   updateXPBar();
 }
 
+// 12.0.2: the XP to the next level is Endless Descent's curve (the same
+// table to level 10, then 500 more a level), up to the character's cap:
+// 10, or 50 in Legacy. The apps use the same.
+function dungeonXpNeeded(level) {
+  var n = typeof afkXpToLevelUp === 'function' ? afkXpToLevelUp(Math.max(1, level)) : null;
+  return n === null ? 9999 : n;
+}
+
 function checkLevelUp() {
   var cap = DS.levelCap || 10;
   if (DS.level >= cap) return;
-  var needed = XP_TABLE[Math.min(DS.level, XP_TABLE.length - 1)];
+  var needed = dungeonXpNeeded(DS.level);
   var leveledUp = false;
   while (DS.xp >= needed && DS.level < cap) {
     DS.xp -= needed;
     DS.level++;
-    needed = XP_TABLE[Math.min(DS.level, XP_TABLE.length - 1)];
+    needed = dungeonXpNeeded(DS.level);
     leveledUp = true;
     // Angel — heals 15 HP each level
     if (DS.angelRace && ACCESS.classTraits) DS.hp = Math.min(DS.maxHp, DS.hp + 15);

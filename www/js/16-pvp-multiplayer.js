@@ -2324,6 +2324,8 @@ function openCombatSpells() {
 function castSpell(spellId) {
   var panel = document.getElementById('combat-spell-panel');
   if (panel) panel.remove();
+  // Frozen means frozen: no spells either (attack or defend to pass the turn).
+  if (DS.frozen && DS.inCombat) { say('You are frozen. You can\'t cast until you thaw. Attack or defend to pass the turn.'); return; }
 
   // BUGFIX: castSpell() was the only combat entry point (unlike doFight/useSkill)
   // with no inCombat/enemy guard, and it committed the cooldown + cast count before

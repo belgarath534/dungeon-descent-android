@@ -140,6 +140,11 @@ function startAFKRun() {
 
   AFK.atk = 28 + Math.round((ch.atkBonus || 0) * 0.7) + (ch.level ? (ch.level - 1) * 2 : 0) + (atkBoosts * 5) + persistAtkBonus + _afkWepBonus;
   AFK.def = (ch.defBonus || 0) + _afkDefBonus;
+  // 12.0.1: stat points spent after earlier runs (the apps use the same afkStats).
+  var _tr = afkTrained(ch);
+  AFK.maxHp += _tr.hp * 20; AFK.hp = AFK.maxHp;
+  AFK.atk += _tr.atk * 2;
+  AFK.def += _tr.def;
   AFK.points = 0;
   AFK.potions = 5 + extraPotions; // Bumped from 2 — need more for long runs
   AFK.FIGHT_MS = slowFight ? 20000 : 15000; // Slowed from 12/15s — more time per fight = longer runs
@@ -436,6 +441,11 @@ function afkEndRun() {
 
   // Save persistent level progress
   saveCharPersistentLevel(AFK.level, AFK.xp, AFK.skills, AFK.maxHp, AFK.atk - 20, AFK.charIdx);
+  // One stat point for every level gained, spent on the summary.
+  if (AFK.levelsGainedThisRun > 0 && CHARS[AFK.charIdx]) {
+    var _t = afkTrained(CHARS[AFK.charIdx]); _t.points += AFK.levelsGainedThisRun;
+    CHARS[AFK.charIdx].afkStats = _t; saveChars();
+  }
 
   // If levels were gained this run — show skill pick screen first
   if (AFK.levelsGainedThisRun > 0) {
@@ -519,6 +529,58 @@ function afkShowSkillPick() {
   }, 150);
 }
 
+// ── 12.0.1: STAT POINTS ── one per level gained in a run: +20 max HP, +2
+// attack or +1 defense for every later Endless run, kept on the character as
+// afkStats {hp, atk, def, points} (the same object as the apps, so it syncs).
+var AFK_STATS = [
+  { id: 'hp',  label: '❤️ +20 Max HP', spoken: '20 more max HP' },
+  { id: 'atk', label: '⚔️ +2 Attack',  spoken: '2 more attack' },
+  { id: 'def', label: '🛡 +1 Defense', spoken: '1 more defense' }
+];
+function afkTrained(ch) {
+  var t = (ch && ch.afkStats) || {};
+  return { hp: t.hp || 0, atk: t.atk || 0, def: t.def || 0, points: t.points || 0 };
+}
+function afkTrain(id) {
+  var ch = CHARS[AFK.charIdx];
+  if (!ch) return;
+  var t = afkTrained(ch);
+  if (t.points <= 0) { say('No stat points left.'); return; }
+  t.points -= 1; t[id] += 1;
+  ch.afkStats = t; saveChars();
+  sfx('sfx-select');
+  var st = AFK_STATS.filter(function(s) { return s.id === id; })[0];
+  afkRenderStatPoints(id);
+  say(st.spoken + ' for every Endless run. ' + t.points + ' point' + (t.points === 1 ? '' : 's') + ' left.');
+}
+function afkRenderStatPoints(focusId) {
+  var box = document.getElementById('afk-stat-points');
+  var host = document.getElementById('afk-summary-content');
+  if (!box && host) {
+    box = document.createElement('div');
+    box.id = 'afk-stat-points';
+    box.style.cssText = 'border:1px solid #332a00;padding:12px;margin:18px 0 0;';
+    host.parentNode.insertBefore(box, host.nextSibling);
+  }
+  if (!box) return;
+  var ch = CHARS[AFK.charIdx];
+  var t = afkTrained(ch);
+  if (!ch || (t.points <= 0 && t.hp + t.atk + t.def === 0)) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = '';
+  var h = '<h3 style="font-family:Cinzel,serif;font-size:0.75rem;letter-spacing:0.15em;color:#ffdd44;margin:0 0 6px;" aria-label="Stat points to spend: ' + t.points + '">STAT POINTS: ' + t.points + '</h3>' +
+    '<p style="font-family:\'Crimson Text\',serif;font-style:italic;color:#a89070;margin:0 0 8px;">One point for every level gained. Each one makes this character stronger in every Endless run.</p>';
+  AFK_STATS.forEach(function(s) {
+    var n = t[s.id];
+    // The buttons stay when the points run out (disabled), so the screen
+    // reader doesn't lose its place.
+    h += '<button class="menu-btn' + (t.points > 0 ? ' primary' : '') + '" id="afk-stat-' + s.id + '" style="width:100%;margin-bottom:6px;"' +
+      (t.points > 0 ? '' : ' aria-disabled="true"') + ' onclick="afkTrain(\'' + s.id + '\')" aria-label="' + s.label + '. Trained: ' + n + '.' + (t.points > 0 ? '' : ' No points left.') + '">' +
+      s.label + ' ×' + n + '</button>';
+  });
+  box.innerHTML = h;
+  if (focusId) { var b = document.getElementById('afk-stat-' + focusId); if (b) b.focus(); }
+}
+
 function afkShowSummary() {
   var save = getAFKSave();
   var summaryEl = document.getElementById('afk-summary-content');
@@ -556,9 +618,12 @@ function afkShowSummary() {
     });
   }
 
+  afkRenderStatPoints();
   goTo('afk-summary');
   window.scrollTo(0, 0);
-  say('Run ended. Floor ' + AFK.floor + ' reached. Level ' + AFK.level + '. ' + AFK.levelsGainedThisRun + ' levels gained. ' + AFK.points + ' descent points earned. Your progress is saved and carries into all game modes.');
+  var _pts = CHARS[AFK.charIdx] ? afkTrained(CHARS[AFK.charIdx]).points : 0;
+  say('Run ended. Floor ' + AFK.floor + ' reached. Level ' + AFK.level + '. ' + AFK.levelsGainedThisRun + ' levels gained. ' + AFK.points + ' descent points earned. Your progress is saved and carries into all game modes.' +
+    (_pts > 0 ? ' You have ' + _pts + ' stat point' + (_pts === 1 ? '' : 's') + ' to spend below.' : ''));
   stopAmbient();
   playTrack(getMenuTrack());
 }
@@ -606,12 +671,12 @@ function updateAFKUI() {
   var lvlEl = document.getElementById('afk-level-display');
   if (lvlEl) lvlEl.textContent = AFK.level || 1;
   // XP bar
-  var xpNeeded = [0,100,220,380,580,820,1100,1430,1810,2240,9999][AFK.level || 1];
-  var xpPct = AFK.level >= 10 ? 100 : Math.min(100, Math.round(((AFK.xp || 0) / xpNeeded) * 100));
+  var xpNeeded = afkXpToLevelUp(AFK.level || 1);
+  var xpPct = xpNeeded === null ? 100 : Math.min(100, Math.round(((AFK.xp || 0) / xpNeeded) * 100));
   var xpBar = document.getElementById('afk-xp-bar');
   if (xpBar) xpBar.style.width = xpPct + '%';
   var xpText = document.getElementById('afk-xp-text');
-  if (xpText) xpText.textContent = (AFK.xp || 0) + ' / ' + (AFK.level >= 10 ? 'MAX' : xpNeeded);
+  if (xpText) xpText.textContent = (AFK.xp || 0) + ' / ' + (xpNeeded === null ? 'MAX' : xpNeeded);
   var potBtn = document.getElementById('afk-potion-btn');
   if (potBtn) {
     potBtn.textContent = '🧪 Potion (' + AFK.potions + ')';
@@ -833,14 +898,23 @@ function afkDoBossFight() {
 }
 
 // ── AFK LEVEL UP ──
+// The Endless level cap: 50 since 12.0.1 (it stopped at 10). Past level 9
+// each level needs 500 more XP than the last; the same table as the apps.
+var AFK_MAX_LEVEL = 50;
+function afkXpToLevelUp(level) {
+  var t = [0,100,220,380,580,820,1100,1430,1810,2240];
+  if (level < 1 || level >= AFK_MAX_LEVEL) return null;
+  return level < t.length ? t[level] : t[t.length - 1] + (level - 9) * 500;
+}
+
 function afkCheckLevelUp() {
-  if (AFK.level >= 10) return;
-  var needed = [0,100,220,380,580,820,1100,1430,1810,2240,9999][AFK.level];
-  while (AFK.xp >= needed && AFK.level < 10) {
+  if (AFK.level >= AFK_MAX_LEVEL) return;
+  var needed = afkXpToLevelUp(AFK.level);
+  while (needed !== null && AFK.xp >= needed && AFK.level < AFK_MAX_LEVEL) {
     AFK.xp -= needed;
     AFK.level++;
     AFK.levelsGainedThisRun++;
-    needed = [0,100,220,380,580,820,1100,1430,1810,2240,9999][AFK.level];
+    needed = afkXpToLevelUp(AFK.level);
 
     // HP increases and heals in real time
     var hpGain = 10;
@@ -1751,23 +1825,30 @@ function voidVictory() {
   document.getElementById('void-active').style.display = 'none';
   document.getElementById('void-victory').style.display = '';
 
-  // Level up ALL characters by 3
+  // Level up ALL characters by 3, once a day (UTC). Every win did it, so a
+  // few minutes of Void Mode reached level 50 and prestige 10.
   var leveled = 0;
-  if (CHARS && CHARS.length > 0) {
+  var today = new Date().toISOString().slice(0, 10);
+  var levelToday = DDStore.getItem('dd_void_level_day') !== today;
+  if (levelToday && CHARS && CHARS.length > 0) {
     CHARS.forEach(function(ch) {
       ch.persistLevel = Math.min(50, (ch.persistLevel || ch.level || 1) + 3);
       leveled++;
     });
     saveChars();
+    DDStore.setItem('dd_void_level_day', today);
   }
 
   // Generate reward code
   var code = generateVoidCode();
   document.getElementById('void-reward-code').textContent = code;
-  document.getElementById('void-level-msg').textContent = leveled + ' character' + (leveled !== 1 ? 's' : '') + ' leveled up by 3!';
+  var levelMsg = levelToday
+    ? leveled + ' character' + (leveled !== 1 ? 's' : '') + ' leveled up by 3!'
+    : 'Your characters already gained their levels from Void Mode today. Come back tomorrow for more.';
+  document.getElementById('void-level-msg').textContent = levelMsg;
 
   awardAchievement('ach-void-conqueror');
-  say('THE VOID PREVAILS! All five waves defeated. All ' + leveled + ' characters leveled up by 3. Your reward code is ' + code + '. Share it with anyone. Press Copy Code to copy it.');
+  say('THE VOID PREVAILS! All five waves defeated. ' + (levelToday ? 'All ' + leveled + ' characters leveled up by 3.' : levelMsg) + ' Your reward code is ' + code + '. Share it with anyone. Press Copy Code to copy it.');
 }
 
 function voidDefeat(killedBy) {
@@ -1887,6 +1968,7 @@ function enterRewardCode() {
     if(result){result.style.color='#ff4444';result.textContent='Invalid code. Birthday codes: DDBD26. Void Reaper codes: VOID-XXXX-XXXX';}
     say('Invalid code format.'); return;
   }
+  if (!voidCodeAllowedToday()) { if(result){result.style.color='#ff4444';result.textContent='You already redeemed a Void code today. Come back tomorrow.';} say('You already redeemed a Void code today. Come back tomorrow.'); return; }
   var seed = 0;
   for (var i = 0; i < code.length; i++) seed = (seed * 31 + code.charCodeAt(i)) & 0xffff;
   var prize = REWARD_CODE_PRIZES[seed % REWARD_CODE_PRIZES.length];
@@ -2155,7 +2237,7 @@ function loadObituary(targetId) {
 function postDeathToObituary(deathData) {
   try {
     if (!window._fbDb && typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
-      window._fbDb = firebase.firestore();
+      window._fbDb = window._ddFirestore();
     }
     if (!window._fbDb) return;
     window._fbDb.collection('deaths').add({
