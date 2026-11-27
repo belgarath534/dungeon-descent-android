@@ -148,6 +148,14 @@ function loadAudioBuffer(url, cache, key, callback) {
       return AUD.ctx.decodeAudioData(ab);
     })
     .then(function(buffer) {
+      // Keep only the track just decoded. A decoded track is raw audio, about
+      // 60MB for a 3-minute song and 200MB for the longest; keeping every one
+      // ever played filled the memory of Android phones until the system
+      // closed the game (often on the way back to the menu). Switching back
+      // to a track decodes it again from the file (cached by the browser).
+      if (cache === AUD.buffers) {
+        Object.keys(cache).forEach(function(k) { if (k !== key) delete cache[k]; });
+      }
       cache[key] = buffer;
       callback(buffer);
     })
