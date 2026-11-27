@@ -1,0 +1,73 @@
+# Runs the real Android app on an emulator with little memory (2 GB, like a
+# cheaper phone) and drives it with tools/android-crash-test.js: every
+# main-menu option and a dungeon, back to the main menu each time. Keeps the
+# phone's log (logcat) and memory readings, so a crash shows its cause.
+name: Android crash test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [android-crash-test, 'android-crash-test-*']
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: |
+          npm install --legacy-peer-deps
+          npm install --no-save playwright@1.49.1
+      - name: Capacitor sync
+        run: npx cap sync android
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - name: Run the game on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          ram-size: 2048M
+          disk-size: 6000M
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
+            (adb logcat -v time > logcat.txt &)
+            node tools/android-crash-test.js > drive.txt 2>&1; echo "exit $?" >> drive.txt; cat drive.txt
+            sleep 3
+            adb shell dumpsys meminfo com.dungeon.descent > meminfo.txt || true
+            adb shell dumpsys activity exit-info com.dungeon.descent > exit-info.txt || true
+            grep -E "FATAL|AndroidRuntime|E/chromium|cr_|Render.*(gone|crash|kill)|lowmemorykiller|lmkd|Kill|died|SIGSEGV|SIGABRT|Abort|Out of memory|OutOfMemory|E/Capacitor|Billing|AdMob|Ads|GameConnect|PlayGames|ActivityManager.*dungeon" logcat.txt | tail -150 > crash-lines.txt || true
+            echo "===== crash-related logcat ====="; cat crash-lines.txt || true
+            echo "===== exit info ====="; head -60 exit-info.txt || true
+            grep -q "^exit 0" drive.txt
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-crash-logs
+          path: |
+            drive.txt
+            logcat.txt
+            crash-lines.txt
+            meminfo.txt
+            exit-info.txt
