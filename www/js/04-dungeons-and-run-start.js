@@ -788,6 +788,7 @@ var SPECIAL_ROOMS = [
                : DS.dungeon === 'The Infernal Descent' ? INFERNAL_ENEMIES
                : DS.dungeon === 'The Abyssal Deep' ? ABYSSAL_ENEMIES
                : DS.dungeon === 'The Shadow World' ? SHADOW_ENEMIES.t1.concat(SHADOW_ENEMIES.t2).concat(SHADOW_ENEMIES.t3)
+               : DS.dungeon === 'The Sky Ruins' ? SKY_ENEMIES.t1.concat(SKY_ENEMIES.t2).concat(SKY_ENEMIES.t3)
                : ENEMIES;
       // The dungeon tables are tiers ({ t1, t2, t3 }), not lists, so this
       // always fell through to an ordinary room. Use this floor's tier.
@@ -879,7 +880,8 @@ var ROOM3D_THEMES = {
   'The Whispering Forest': { wall:0x4a5a3a, floor:0x3a422a, ceil:0x28301c, torch:0x88cc44, fog:0x0a1005, fogDensity:0.080, ambient:0x2a3818 },
   'The Infernal Descent': { wall:0x5c2418, floor:0x452012, ceil:0x2e1208, torch:0xff2200, fog:0x150300, fogDensity:0.090, ambient:0x431408 },
   'The Abyssal Deep':    { wall:0x2a3450, floor:0x1e2438, ceil:0x161c2a, torch:0x2299ff, fog:0x02040a, fogDensity:0.105, ambient:0x18243c },
-  'The Shadow World':    { wall:0x342a3e, floor:0x261f2e, ceil:0x1c1722, torch:0x8844cc, fog:0x0a0510, fogDensity:0.080, ambient:0x2c1c3a }
+  'The Shadow World':    { wall:0x342a3e, floor:0x261f2e, ceil:0x1c1722, torch:0x8844cc, fog:0x0a0510, fogDensity:0.080, ambient:0x2c1c3a },
+  'The Sky Ruins':       { wall:0x6a7a5a, floor:0x4a5a3a, ceil:0x8aa8c8, torch:0xccff88, fog:0xb8c8d8, fogDensity:0.035, ambient:0x8a9a7a }
 };
 function _room3DTheme() {
   return (DS && ROOM3D_THEMES[DS.dungeon]) || ROOM3D_THEMES['Crypt of Malachar'];
@@ -2196,7 +2198,7 @@ var LOOT = [
 var HP_MAP = { Warrior:120, Monk:90, Assassin:80, Paladin:130, Naturalist:85, Sorcerer:70, Necromancer:75, Berserker:110, Bard:80, Alchemist:85, BloodKnight:100, Druid:95, Warlock:75, DeathKnight:115, Ranger:90, Sentinel:145, Cleric:105, Wizard:60 };
 var ATK_MAP = { Warrior:[8,16], Monk:[7,14], Assassin:[10,18], Paladin:[6,13], Naturalist:[6,12], Sorcerer:[12,22], Necromancer:[7,14], Berserker:[9,17], Bard:[6,12], Alchemist:[7,14], BloodKnight:[10,20], Druid:[7,14], Warlock:[9,17], DeathKnight:[8,16], Ranger:[9,17], Sentinel:[5,11], Cleric:[6,12], Wizard:[14,24] };
 var DEF_MAP = { Warrior:3, Monk:1, Paladin:5, Assassin:0, Naturalist:1, Sorcerer:0, Necromancer:0, Berserker:2, Bard:1, Alchemist:1, BloodKnight:2, Druid:2, Warlock:0, DeathKnight:4, Ranger:1, Sentinel:7, Cleric:3, Wizard:0 };
-var LIVES_MAP = { Wanderer:3, Ironblood:1, Condemned:1, Forsaken:1, Nightmare:1, Endless:2, Insane:1 };
+var LIVES_MAP = { Wanderer:3, Ironblood:1, Condemned:1, Forsaken:1, Nightmare:1, Endless:2, Insane:1, Impossible:1 };
 
 var DS = {};
 
@@ -2495,10 +2497,15 @@ function initDungeon(ch) {
     if (ch.cls === 'TimeMage') { DS.maxHp = Math.round(DS.maxHp * 0.82); DS.hp = DS.maxHp; }
     if (ch.cls === 'Shaman') { DS.maxHp = Math.round(DS.maxHp * 0.90); DS.hp = DS.maxHp; }
     if (ch.cls === 'Arcanist') { DS.maxHp = Math.round(DS.maxHp * 0.78); DS.hp = DS.maxHp; }
+    // 12.3: Aarakocra (light, quick) and Goliath (giant-folk)
+    if (ch.race === 'Aarakocra') { DS.maxHp = Math.round(DS.maxHp * 0.90); DS.hp = DS.maxHp; }
+    if (ch.race === 'Goliath') { DS.maxHp = Math.round(DS.maxHp * 1.15); DS.hp = DS.maxHp; }
     // Angel race — extra life
     if (ch.race === 'Angel') { DS.lives = (DS.lives || 1) + 1; DS.maxLives = (DS.maxLives || 1) + 1; }
   }
   // Init Insane Mode
+  // 12.3: Impossible — one life, no revives (js/36-new-heroes.js does the rest)
+  if (ch.difficulty === 'Impossible') { DS.lives = 1; DS.maxLives = 1; DS._impossible = true; }
   if (ch.difficulty === 'Insane') {
     DS.lives = 1; DS.maxLives = 1;
     initInsaneMode();
@@ -2724,10 +2731,11 @@ function enterRoom() {
   var isInfernal  = DS.dungeon === 'The Infernal';
   var isWhisper   = DS.dungeon === 'The Whispering Forest';
   var isShadow    = DS.dungeon === 'The Shadow World';
+  var isSky       = DS.dungeon === 'The Sky Ruins';
   var isNightmare = DS.diff === 'Nightmare';
-  var roomDescs  = isAsh ? ASH_ROOM_DESCS  : isFrost ? FROST_ROOM_DESCS  : isSunken ? SUNKEN_ROOM_DESCS  : isHollow ? HOLLOW_ROOM_DESCS  : isInfernal ? INFERNAL_ROOM_DESCS  : isWhisper ? WHISPER_ROOM_DESCS : isShadow ? SHADOW_ROOM_DESCS : ROOM_DESCS;
-  var floorNames = isAsh ? ASH_FLOOR_NAMES : isFrost ? FROST_FLOOR_NAMES : isSunken ? SUNKEN_FLOOR_NAMES : isHollow ? HOLLOW_FLOOR_NAMES : isInfernal ? INFERNAL_FLOOR_NAMES : isWhisper ? WHISPER_FLOOR_NAMES : isShadow ? SHADOW_FLOOR_NAMES : FLOOR_NAMES;
-  var lootPool   = isAsh ? ASH_LOOT : isFrost ? FROST_LOOT : isSunken ? SUNKEN_LOOT : isHollow ? HOLLOW_LOOT : isInfernal ? INFERNAL_LOOT : isWhisper ? WHISPER_LOOT : isShadow ? SHADOW_LOOT : LOOT;
+  var roomDescs  = isAsh ? ASH_ROOM_DESCS  : isFrost ? FROST_ROOM_DESCS  : isSunken ? SUNKEN_ROOM_DESCS  : isHollow ? HOLLOW_ROOM_DESCS  : isInfernal ? INFERNAL_ROOM_DESCS  : isWhisper ? WHISPER_ROOM_DESCS : isShadow ? SHADOW_ROOM_DESCS : isSky ? SKY_ROOM_DESCS : ROOM_DESCS;
+  var floorNames = isAsh ? ASH_FLOOR_NAMES : isFrost ? FROST_FLOOR_NAMES : isSunken ? SUNKEN_FLOOR_NAMES : isHollow ? HOLLOW_FLOOR_NAMES : isInfernal ? INFERNAL_FLOOR_NAMES : isWhisper ? WHISPER_FLOOR_NAMES : isShadow ? SHADOW_FLOOR_NAMES : isSky ? SKY_FLOOR_NAMES : FLOOR_NAMES;
+  var lootPool   = isAsh ? ASH_LOOT : isFrost ? FROST_LOOT : isSunken ? SUNKEN_LOOT : isHollow ? HOLLOW_LOOT : isInfernal ? INFERNAL_LOOT : isWhisper ? WHISPER_LOOT : isShadow ? SHADOW_LOOT : isSky ? SKY_LOOT : LOOT;
   var enemyPool  = isNightmare ? NIGHTMARE_ENEMIES
                  : isAsh       ? ASH_ENEMIES
                  : isFrost     ? FROST_ENEMIES
@@ -3053,8 +3061,9 @@ function enterRoom() {
       var eliteKey = DS.diff === 'Nightmare' ? 'Nightmare' : DS.dungeon;
       var elitePool = (DS.dungeon === 'The Whispering Forest' ? WHISPER_ELITES : null) || 
                       (DS.dungeon === 'The Shadow World' ? (SHADOW_ENEMIES.elites || []) : null) ||
+                      (DS.dungeon === 'The Sky Ruins' ? SKY_ENEMIES.elites : null) ||
                       ELITE_ENEMIES[eliteKey] || [];
-      var spawnElite = DS.floor >= 4 && elitePool.length > 0 && Math.random() < 0.15;
+      var spawnElite = DS.floor >= 4 && elitePool.length > 0 && Math.random() < (DS.diff === 'Impossible' ? 0.30 : 0.15);
       var tier = DS.floor <= 3 ? 't1' : DS.floor <= 6 ? 't2' : 't3';
       var pool = DS.dungeon === 'The Whispering Forest'
         ? WHISPER_ENEMIES[tier]
@@ -3062,6 +3071,8 @@ function enterRoom() {
         ? ABYSSAL_ENEMIES[tier]
         : DS.dungeon === 'The Shadow World'
         ? SHADOW_ENEMIES[tier]
+        : DS.dungeon === 'The Sky Ruins'
+        ? SKY_ENEMIES[tier]
         : enemyPool[tier];
       var base = spawnElite
         ? elitePool[Math.floor(Math.random() * elitePool.length)]
@@ -3124,6 +3135,8 @@ function enterRoom() {
         ? enemy.name + ' emerges from the frozen dark. The temperature drops around it.'
         : DS.dungeon === 'The Abyssal Deep'
         ? enemy.name + ' rises from the dark water. The pressure around it is immense.'
+        : isSky
+        ? enemy.name + ' unfolds from the overgrowth. The wind carries the smell of sweet rot.'
         : getEnemyEmergeMessage(enemy);
 
       // Inject special enemy if queued from floor advance

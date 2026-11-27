@@ -913,6 +913,16 @@ var ACHIEVEMENTS = [
   // ── FLOOR 10 ACHIEVEMENT ──
   { gold:200, trophies:4, id:'ach-echoes-of-void', gpId:'CgkI0uiuoZcDEAIQZw', name:'Echoes of the Void', icon:'🌑', desc:'The darkness remembers you.', hint:'Reach floor 10 in a single run.', check:function(s){ return (s.maxFloorReached||0)>=10; } },
 
+  // ── THE SKY RUINS (12.3) — awarded directly by js/35-sky-ruins.js ──
+  { gold:400, trophies:6, id:'ach-undying-no-more', name:'Undying No More', icon:'🌹', desc:'She said she could not die. She was wrong.', hint:'Defeat Queen Verdana in The Sky Ruins.', check:function(){ return false; } },
+  { gold:300, trophies:5, id:'ach-root-and-branch', name:'Root and Branch', icon:'🔥', desc:'You burned her roots before she could dig in.', hint:'Burn Queen Verdana\'s roots before her third phase.', check:function(){ return false; } },
+  { gold:300, trophies:5, id:'ach-antidote-not-required', name:'Antidote Not Required', icon:'🧪', desc:'All that poison, and you never needed the cure.', hint:'Defeat Queen Verdana without using an Antidote that run.', check:function(){ return false; } },
+  { gold:600, trophies:10, id:'ach-the-impossible', name:'The Impossible', icon:'💀', desc:'They said it couldn\'t be done. They were wrong.', hint:'Clear any dungeon on Impossible.', check:function(){ return false; } },
+  { gold:1000, trophies:15, id:'ach-beyond-impossible', name:'Beyond Impossible', icon:'👑', desc:'The garden, the queen, one life. Beyond impossible.', hint:'Clear The Sky Ruins on Impossible.', check:function(){ return false; } },
+  { gold:150, trophies:3, id:'ach-featherweight', name:'Featherweight', icon:'🪶', desc:'Three falls. Still standing.', hint:'Fall off the edge 3 times in one Sky Ruins run.', check:function(){ return false; } },
+  { gold:300, trophies:5, id:'ach-doctors-orders', name:'Doctor\'s Orders', icon:'🩺', desc:'The cure was worse. It worked anyway.', hint:'Win a run as a Plague Doctor.', check:function(){ return false; } },
+  { gold:300, trophies:5, id:'ach-some-assembly', name:'Some Assembly Required', icon:'⚙️', desc:'Built, not born. Built well.', hint:'Win a run as an Artificer.', check:function(){ return false; } },
+
   // ── VOID CHILD QUESTLINE ──
   { gold:100, trophies:5,  id:'ach-phase4-reached', gpId:'CgkI0uiuoZcDEAIQFQ',   name:'Into The Abyss',    icon:'🌊', desc:'You reached Phase 4 of The Leviathan. The abyss has awakened.', hint:'Reach Phase 4 of The Leviathan fight.', check: function(s){ return s.phase4Reached; } },
   { gold:150, trophies:7,  id:'ach-rhythm-win', gpId:'CgkI0uiuoZcDEAIQJA',       name:'In Perfect Time',   icon:'🎵', desc:'You answered the call of the abyss. The rhythm was yours.', hint:'Win the rhythm sequence in the Leviathan fight.', check: function(s){ return s.rhythmWon; } },
@@ -2045,6 +2055,7 @@ function spawnGauntletWave() {
            : isInfernal ? INFERNAL_ENEMIES.t2
            : isAbyssal  ? ABYSSAL_ENEMIES.t2
            : isShadow   ? SHADOW_ENEMIES.t2
+           : DS.dungeon === 'The Sky Ruins' ? SKY_ENEMIES.t2
            : ENEMIES.t2;
   var base = pool[Math.floor(Math.random() * pool.length)];
   var diffMult = DS.diff === 'Nightmare' ? 1.4 : DS.diff === 'Forsaken' ? 1.2 : DS.diff === 'Condemned' ? 1.1 : 1.0;

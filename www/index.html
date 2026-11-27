@@ -1001,6 +1001,16 @@ window._ddFirestore = function () {
             <p class="class-desc">The purest form of magic. No weapons, no armor — pure arcane force. Highest magic damage in the game. Extremely fragile.</p>
             <div class="class-stats"><span class="stat-pip">INT ●●●●</span><span class="stat-pip">SP ●●●●</span><span class="stat-pip">HP ●○○○</span></div>
           </button>
+          <button class="class-card" role="radio" aria-checked="false" data-class="PlagueDoctor" onclick="pickClass(this)" aria-label="Plague Doctor, the cure is worse. Poisons enemies and cures itself. Takes half damage from poison.">
+            <span class="class-icon" aria-hidden="true">🩺</span><div class="class-name">Plague Doctor</div><div class="class-role">The Cure Is Worse</div>
+            <p class="class-desc">Bird mask, black coat, a bag of flasks. Poisons the enemy, cures the self. Takes half damage from poison and breathes through spore clouds.</p>
+            <div class="class-stats"><span class="stat-pip">INT ●●●○</span><span class="stat-pip">SP ●●●○</span><span class="stat-pip">HP ●●○○</span></div>
+          </button>
+          <button class="class-card" role="radio" aria-checked="false" data-class="Artificer" onclick="pickClass(this)" aria-label="Artificer, built not born. Turrets, shock gauntlets, a flamethrower and repair kits.">
+            <span class="class-icon" aria-hidden="true">⚙️</span><div class="class-name">Artificer</div><div class="class-role">Built, Not Born</div>
+            <p class="class-desc">An inventor who fights with gadgets: turrets that shoot every turn, a shock gauntlet, a flamethrower that burns roots, and repair kits.</p>
+            <div class="class-stats"><span class="stat-pip">STR ●●○○</span><span class="stat-pip">DEF ●●●○</span><span class="stat-pip">HP ●●●○</span></div>
+          </button>
         </div>
         <div class="btn-row"><span></span><button class="btn btn-primary" id="cbtn-1" onclick="cStep(2)">Continue to Race →</button></div>
       </section>
@@ -1033,6 +1043,8 @@ window._ddFirestore = function () {
           <button class="race-card" role="radio" aria-checked="false" data-race="Dragonborn" onclick="pickRace(this)" aria-label="Dragonborn, dragon blood, 10 percent chance to deal bonus burn damage every hit"><span class="race-icon" aria-hidden="true">🐉</span><div class="race-name">Dragonborn</div><div class="race-trait">10% burn damage · Scales with floor</div></button>
           <button class="race-card" role="radio" aria-checked="false" data-race="Gnome" onclick="pickRace(this)" aria-label="Gnome, arcane trickster, plus INT and LCK, skills cost less SP"><span class="race-icon" aria-hidden="true">🧙</span><div class="race-name">Gnome</div><div class="race-trait">+INT +LCK · Skills cost less SP</div></button>
           <button class="race-card" role="radio" aria-checked="false" data-race="Merfolk" onclick="pickRace(this)" aria-label="Merfolk, aquatic, plus AGI, potions heal more, bonus in Sunken Archives"><span class="race-icon" aria-hidden="true">🌊</span><div class="race-name">Merfolk</div><div class="race-trait">+AGI · Potions +20% · Sunken bonus</div></button>
+          <button class="race-card" role="radio" aria-checked="false" data-race="Aarakocra" onclick="pickRace(this)" aria-label="Aarakocra, bird-folk, glide with no fall damage, plus 8 percent dodge, 10 percent less health"><span class="race-icon" aria-hidden="true">🪶</span><div class="race-name">Aarakocra</div><div class="race-trait">Glide · +8% dodge · −10% HP</div></button>
+          <button class="race-card" role="radio" aria-checked="false" data-race="Goliath" onclick="pickRace(this)" aria-label="Goliath, giant-folk, 15 percent more health, once a fight a heavy hit is halved, the wind can't move you"><span class="race-icon" aria-hidden="true">🗿</span><div class="race-name">Goliath</div><div class="race-trait">+15% HP · Stone's Endurance</div></button>
         </div>
         <div class="btn-row"><button class="btn btn-secondary" onclick="cStep(1)">← Back</button><button class="btn btn-primary" id="cbtn-2" onclick="cStep(3)">Continue to Profession →</button></div>
       </section>
@@ -1201,6 +1213,15 @@ window._ddFirestore = function () {
           </div>
         </button>
 
+        <button class="dungeon-card locked" id="skyruins-dungeon-card" role="radio" aria-checked="false" data-dungeon="The Sky Ruins" onclick="handleSkyRuinsClick()" aria-label="The Sky Ruins, locked. Complete The Shadow World to unlock.">
+          <span class="dungeon-icon" aria-hidden="true">☁️</span>
+          <div style="flex:1;">
+            <div class="dungeon-name" style="color:#88cc66;">The Sky Ruins</div>
+            <div style="font-family:Cinzel,serif;font-size:0.62rem;color:#3a5a2a;font-style:italic;line-height:1.5;">A kingdom torn out of the earth by a flower that could not die. Stacking poison, killer plants, wind that throws you off the edge, and a garden that grows stronger the longer you stay. Queen Verdana waits on her throne of thorns.</div>
+            <div class="dungeon-unlock-note" style="color:#88cc66;" aria-hidden="true">🔒 Complete The Shadow World to unlock</div>
+          </div>
+        </button>
+
         </div>
         <div class="btn-row"><button class="btn btn-secondary" onclick="cStep(4)">← Back</button><button class="btn btn-primary" id="cbtn-5" onclick="cStep(6)">Continue to Fate →</button></div>
       </section>
@@ -1261,6 +1282,12 @@ window._ddFirestore = function () {
             <div class="diff-lives" style="color:#cc0000;">❤️ One Life · Sanity Bar</div>
             <p class="diff-desc" style="color:#aa3333;">The dungeon does not play fair at this level. Neither should you.</p>
             <div style="font-family:Cinzel,serif;font-size:0.6rem;color:#882222;margin-top:6px;letter-spacing:0.08em;">1 life · Sanity bar · Corrupted UI · Not for the faint of heart</div>
+          </button>
+          <button class="diff-card" role="radio" aria-checked="false" data-diff="Impossible" onclick="pickDiff(this)" aria-label="Impossible. One life, no revives. Enemies have 80 percent more health and 60 percent more attack. Potions heal half. Double gold and experience. Most players will not finish a single floor.">
+            <div class="diff-name" style="color:#ff2222;">💀 Impossible</div>
+            <div class="diff-lives" style="color:#ff2222;">❤️ One Life · No Revives</div>
+            <p class="diff-desc" style="color:#bb3333;">Everything is stronger. Most players will not finish a single floor.</p>
+            <div style="font-family:Cinzel,serif;font-size:0.6rem;color:#992222;margin-top:6px;letter-spacing:0.08em;">+80% enemy HP · +60% enemy attack · Potions heal half · Double gold and XP</div>
           </button>
           <button class="diff-card" role="radio" aria-checked="false" data-diff="Endless" onclick="pickDiff(this)" aria-label="Endless mode. The dungeon never ends. Keep descending forever until you die. Your floor depth is your score.">
             <span class="diff-icon" aria-hidden="true">⬇</span>
@@ -1642,6 +1669,7 @@ window._ddFirestore = function () {
         <div class="dg-hp-bar-wrap"><div class="dg-hp-bar dg-player-hp-bar" id="dg-player-bar" style="width:100%"></div></div>
         <div class="dg-hp-text" id="dg-player-hp" aria-live="polite" aria-label="Your health: 100 of 100">HP: 100/100</div>
         <div id="dg-shadow-corruption" style="display:none;font-family:Cinzel,serif;font-size:0.65rem;color:#9966cc;margin-top:4px;" aria-live="assertive"></div>
+        <div id="dg-sky-status" style="display:none;font-family:Cinzel,serif;font-size:0.65rem;color:#88cc66;margin-top:4px;" role="status"></div>
       </div>
       <div class="dg-combat-log" id="dg-combat-log" role="log" aria-live="polite" aria-label="Combat log"></div>
       <button type="button" class="dg-btn" id="dg-recap-btn" onclick="whatJustHappened()" aria-label="What just happened? Reads the last five lines again. Alt+W on a keyboard." style="width:100%;margin:6px 0;font-size:0.7rem;">❓ What just happened</button>
@@ -1937,6 +1965,7 @@ window._ddFirestore = function () {
         <button class="quest-tab" id="be-filter-infernal" role="tab" aria-selected="false" onclick="filterBestiary('infernal')" aria-label="Show The Infernal enemies">🔥 Infernal</button>
       <button class="quest-tab" id="be-filter-abyssal" role="tab" aria-selected="false" onclick="filterBestiary('abyssal')" aria-label="Show The Abyssal Deep enemies">🌊 Abyssal</button>
       <button class="quest-tab" id="be-filter-shadow" role="tab" aria-selected="false" onclick="filterBestiary('shadow')" aria-label="Show The Shadow World enemies">🌑 Shadow</button>
+          <button class="quest-tab" id="be-filter-sky" role="tab" aria-selected="false" onclick="filterBestiary('sky')" aria-label="Show The Sky Ruins enemies">☁️ Sky</button>
         <button class="quest-tab" id="be-filter-builder" role="tab" aria-selected="false" onclick="openSpiritBuilder()" aria-label="Spirit Builder — craft your own spirit companion">🔮 Builder</button>
         <button class="quest-tab" id="be-filter-special" role="tab" aria-selected="false" onclick="filterBestiary('special')" aria-label="Special enemies — Void Mode, Boss Rush, AFK, and seasonal">⭐ Special</button>
       </div>
@@ -7702,6 +7731,8 @@ window._ddFirestore = function () {
 <script src="js/32-audio-map.js?v=12.1.0"></script>
 <script src="js/33-hunt-tracking.js?v=12.1.0"></script>
 <script src="js/34-guilds.js?v=12.1.0"></script>
+<script src="js/35-sky-ruins.js?v=12.1.0"></script>
+<script src="js/36-new-heroes.js?v=12.1.0"></script>
 
 
 

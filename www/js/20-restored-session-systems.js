@@ -553,8 +553,8 @@ function pickRunMode(mode) {
 
 // 12.0.2: later dungeons are harder. From the third dungeon (Frosthold
 // Abyss) enemies and bosses have +15% HP and attack, and 10% more for each
-// dungeon after it (The Shadow World +75%). The apps use the same numbers.
-var DEPTH_ORDER = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep','The Shadow World'];
+// dungeon after it (The Shadow World +75%, The Sky Ruins +85%). The apps use the same numbers.
+var DEPTH_ORDER = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep','The Shadow World','The Sky Ruins'];
 function dungeonDepthMult(dungeon) {
   var i = DEPTH_ORDER.indexOf(dungeon);
   return i >= 2 ? 1.15 + (i - 2) * 0.10 : 1;

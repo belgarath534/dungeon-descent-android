@@ -497,6 +497,7 @@ var DUNGEON_ENEMY_SFX = {
   'The Infernal':          'sfx-enemy-demon',
   'The Abyssal Deep':      'sfx-enemy-leviathan',
   'The Shadow World':      'sfx-enemy-shadow',
+  'The Sky Ruins':         'sfx-plant-hiss',
 };
 var DUNGEON_BOSS_SFX = {
   'Crypt of Malachar':     'sfx-boss-undead',
@@ -509,6 +510,7 @@ var DUNGEON_BOSS_SFX = {
   'The Infernal':          'sfx-boss-demon',
   'The Abyssal Deep':      'sfx-boss-leviathan',
   'The Shadow World':      'sfx-boss-shadow',
+  'The Sky Ruins':         'sfx-boss-bloom-roar',
 };
 
 function startCombat(isBoss) {
@@ -590,6 +592,7 @@ function startCombat(isBoss) {
              : DS.dungeon === 'The Infernal Descent'  ? INFERNAL_ENEMIES.bossPool
              : DS.dungeon === 'The Abyssal Deep'      ? ABYSSAL_ENEMIES.bossPool
              : DS.dungeon === 'The Shadow World'      ? SHADOW_ENEMIES.bossPool.filter(function(b){ return b.isEcho; })
+             : DS.dungeon === 'The Sky Ruins'         ? SKY_ENEMIES.bossPool
              : ENEMIES.bossPool;
     var bossTemplate = pool[Math.floor(Math.random() * pool.length)];
     // Show boss preview before spawning
@@ -1611,6 +1614,7 @@ function doFight(action) {
     // second boost made them heal 2.7 times)
     // Merfolk — potions heal 20% more
     if (DS.merfolkRace && ACCESS.classTraits) heal = Math.round(heal * 1.20);
+    if (DS.diff === 'Impossible') heal = Math.round(heal / 2); // 12.3: potions heal half
     DS.hp = Math.min(DS.maxHp, DS.hp + heal);
     sfx('sfx-potion');
     DS.potionsUsed = (DS.potionsUsed || 0) + 1;
@@ -1830,7 +1834,7 @@ function doFight(action) {
     // Apply enemy mechanic flags — drain, lifesteal, double strike etc
     rawDmg = applyEnemyMechanicsOnTurn(e, rawDmg);
     // Difficulty multiplier — hard modes hit harder
-    var diffMult = DS.diff === 'Nightmare' ? 1.75 : DS.diff === 'Forsaken' ? 1.5 : DS.diff === 'Condemned' ? 1.25 : DS.diff === 'Ironblood' ? 1.1 : 1.0;
+    var diffMult = DS.diff === 'Impossible' ? 1.6 : DS.diff === 'Nightmare' ? 1.75 : DS.diff === 'Forsaken' ? 1.5 : DS.diff === 'Condemned' ? 1.25 : DS.diff === 'Ironblood' ? 1.1 : 1.0;
     rawDmg = Math.round(rawDmg * diffMult);
     // Undead resistance
     var undeadNames = ['Hollow Shade','Brittle Skeleton','Wailing Wraith','Armored Skeleton','Bone Colossus','Death Knight','Soul Harvester','Malachar the Undying'];
@@ -1887,6 +1891,8 @@ function doFight(action) {
       var scaleDR = DS.inventory.reduce(function(sum, i){ return sum + (i.dmgReduction || 0); }, 0);
       if (scaleDR > 0) taken = Math.max(1, taken - scaleDR);
     }
+    // The Sky Ruins — thornwall, Goliath's Stone's Endurance
+    if (typeof skyBeforeHit === 'function') taken = skyBeforeHit(e, taken);
     // Mana shield
     if (DS.manaShield && DS.manaShield > 0) {
       var absorbed = Math.min(DS.manaShield, taken);
@@ -1902,6 +1908,7 @@ function doFight(action) {
     }
     DS.hp = Math.max(0, DS.hp - taken);
     if (!DS._floorDmgTaken) DS._floorDmgTaken = 0; DS._floorDmgTaken += taken;
+    if (typeof skyAfterHit === 'function') skyAfterHit(e, taken); // Sky Ruins poison, strangle, sleep
     var _retaliated = fxAfterTaken(e, taken);
     vibe(taken > (DS.maxHp||100) * 0.3 ? VIBE.bigDamage : (e && e.isBoss ? VIBE.bossAttack : VIBE.takeDamage));
     updatePlayerBar();

@@ -355,7 +355,7 @@ var _ccStep = null; // current creation step
 var _ccClasses = ['Warrior','Monk','Assassin','Paladin','Naturalist','Sorcerer','Necromancer','Berserker','Bard','Alchemist','BloodKnight','Druid','Warlock','DeathKnight','Ranger','Sentinel','Cleric','Wizard','Elementalist','VoidWalker','ShadowMage','TimeMage','Shaman','Arcanist'];
 var _ccRaces = ['Human','Elf','Dwarf','Orc','Tiefling','Shade','Vampire','Goblin','Angel','Demon','Golem','Halfling','Dragonborn','Gnome','Merfolk'];
 var _ccProfs = ['Blacksmith','Herbalist','Scholar','Mercenary','Gravedigger','Thief','Pilgrim','Grave Robber','Street Rat','Tinkerer','Warden'];
-var _ccDungeons = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep','The Shadow World'];
+var _ccDungeons = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep','The Shadow World','The Sky Ruins'];
 // ("Explorer" isn't a difficulty, and Ironblood and Insane were missing)
 var _ccDiffs = ['Wanderer','Ironblood','Condemned','Forsaken','Nightmare','Endless','Insane'];
 

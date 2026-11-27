@@ -2319,7 +2319,7 @@ function retryRun() {
 
 function openNGPlusChoice() {
   var ch = _charIdx !== null ? CHARS[_charIdx] : null;
-  var dungeonOrder = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep','The Shadow World'];
+  var dungeonOrder = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep','The Shadow World','The Sky Ruins'];
   var currentIdx = dungeonOrder.indexOf(ch ? ch.dungeon : '');
   var nextDungeon = (currentIdx >= 0 && currentIdx < dungeonOrder.length - 1) ? dungeonOrder[currentIdx + 1] : null;
 
@@ -2356,7 +2356,7 @@ function continueJourney() {
   closeOv('ov-ngplus-choice');
   if (_charIdx === null) return;
   var ch = CHARS[_charIdx];
-  var dungeonOrder = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep','The Shadow World'];
+  var dungeonOrder = ['Crypt of Malachar','The Ashbound Wastes','Frosthold Abyss','The Sunken Archives','The Hollow','The Whispering Forest','The Infernal Descent','The Abyssal Deep','The Shadow World','The Sky Ruins'];
   var currentIdx = dungeonOrder.indexOf(ch.dungeon);
   if (currentIdx < 0 || currentIdx >= dungeonOrder.length - 1) {
     // Last dungeon — nothing to continue to, just go to menu

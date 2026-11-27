@@ -406,6 +406,7 @@ function getEnemyPool() {
   else if (dungeon === 'The Infernal Descent' || dungeon === 'The Infernal') pool = INFERNAL_ENEMIES ? (INFERNAL_ENEMIES[tier] || INFERNAL_ENEMIES.normal || []) : [];
   else if (dungeon === 'The Abyssal Deep') pool = ABYSSAL_ENEMIES[tier] || [];
   else if (dungeon === 'The Shadow World') pool = SHADOW_ENEMIES[tier] || [];
+  else if (dungeon === 'The Sky Ruins') pool = SKY_ENEMIES[tier] || [];
   else pool = ENEMIES[tier] || ENEMIES.normal || [];
   // Fallback to crypt enemies if pool is empty
   if (!pool || pool.length === 0) pool = ENEMIES[tier] || ENEMIES.t1 || [];

@@ -1203,6 +1203,7 @@ var DUNGEON_INTROS = {
   'The Infernal Descent':   { eyebrow:'Entering the Infernal', text:'Everything here has already burned. It burns still. The things that live in the fire have stopped noticing the fire. They will notice you.' },
   'The Abyssal Deep':       { eyebrow:'Descending into the Deep', text:'The deepest dungeon. Every boss here has four phases and at least 600 HP. It hits harder than anything you have faced. Stock every potion. Use every skill. Cast every spell. You have been warned.' },
   'The Shadow World':       { eyebrow:'Entering the Shadow World', text:'It has existed for 3000 years beneath a cursed forest. It does not obey your rules. The Shapeshifter waits at the end — wearing your face, using your skills, knowing your every move. Nothing that enters here leaves unchanged.' },
+  'The Sky Ruins':          { eyebrow:'Climbing into the Sky Ruins', text:'The stairs end in open sky. Below you, clouds. Ahead, broken towers wrapped in vines thicker than your arm. Something sweet is in the air. It burns a little when you breathe.' },
 };
 var _dungeonIntroShown = {};
 
@@ -1253,7 +1254,7 @@ function filterBestiary(filter) {
   _bestiaryVisibleCount = _bestiaryPageSize;
   var input = document.getElementById('be-search');
   if (input) input.value = '';
-  ['all','crypt','ash','frost','sunken','hollow','nightmare','elite','whisper','spire','infernal','abyssal','shadow','special','type-undead','type-beast','type-demon','type-elemental','type-spirit'].forEach(function(f) {
+  ['all','crypt','ash','frost','sunken','hollow','nightmare','elite','whisper','spire','infernal','abyssal','shadow','sky','special','type-undead','type-beast','type-demon','type-elemental','type-spirit'].forEach(function(f) {
     var tab = document.getElementById('be-filter-' + f);
     if (tab) {
       tab.classList.toggle('active', f === filter);
@@ -1263,7 +1264,7 @@ function filterBestiary(filter) {
   // Hide community section if switching away
   document.getElementById('bestiary-grid').style.display = '';
   renderBestiary();
-  var labels = {all:'All enemies',crypt:'Crypt',ash:'Ashbound',frost:'Frosthold',sunken:'Archives',hollow:'Hollow',nightmare:'Nightmare',elite:'Elite',whisper:'Whispering Forest',spire:'The Spire',infernal:'The Infernal',abyssal:'The Abyssal Deep',shadow:'The Shadow World',special:'Special enemies','type-undead':'Undead enemies','type-beast':'Beast enemies','type-demon':'Demon enemies','type-elemental':'Elemental enemies','type-spirit':'Spirit enemies'};
+  var labels = {all:'All enemies',crypt:'Crypt',ash:'Ashbound',frost:'Frosthold',sunken:'Archives',hollow:'Hollow',nightmare:'Nightmare',elite:'Elite',whisper:'Whispering Forest',spire:'The Spire',infernal:'The Infernal',abyssal:'The Abyssal Deep',shadow:'The Shadow World',sky:'The Sky Ruins',special:'Special enemies','type-undead':'Undead enemies','type-beast':'Beast enemies','type-demon':'Demon enemies','type-elemental':'Elemental enemies','type-spirit':'Spirit enemies'};
   say('Showing ' + (labels[filter]||filter) + ' enemies.');
 }
 

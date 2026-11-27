@@ -297,6 +297,13 @@ var TRACK_FILES = {
   'shadow-battle':      _audioUrl('music-shadow-battle.mp3'),
   'ambient-shadow':     _audioUrl('ambient-shadow.mp3'),
   'shadow-stalker':     _audioUrl('shadow-world-thriller-score.mp3'), // Stalker Floor tension music
+  // ── THE SKY RUINS ──
+  'skyruins1':          _audioUrl('music-skyruins1.mp3'),
+  'skyruins2':          _audioUrl('music-skyruins2.mp3'),
+  'skyruins3':          _audioUrl('music-skyruins3.mp3'),
+  'skyruins-boss':      _audioUrl('music-skyruins-boss.mp3'),
+  'skyruins-battle':    _audioUrl('music-skyruins-battle.mp3'),
+  'ambient-sky':        _audioUrl('ambient-sky.mp3'),
 };
 
 // Ambient sound tracks per dungeon
@@ -311,6 +318,7 @@ var AMBIENT_FILES = {
   'infernal':   _audioUrl('ambient-infernal.mp3'),
   'abyssal':    _audioUrl('ambient-abyssal.mp3'),
   'shadow':     _audioUrl('ambient-shadow.mp3'),
+  'sky':        _audioUrl('ambient-sky.mp3'),
   'mine':       _audioUrl('music-mine-ambient.mp3')
 };
 var _ambientTrack = null;
@@ -376,6 +384,12 @@ function exploTrackForFloor(floor) {
     if (floor >= 10)              return 'shadow-boss';
     return 'shadow1';
   }
+  if (dungeon === 'The Sky Ruins') {
+    if (floor <= 3)               return 'skyruins1';
+    if (floor >= 4 && floor <= 6) return 'skyruins2';
+    if (floor >= 7 && floor <= 9) return 'skyruins3';
+    return 'skyruins-boss';
+  }
   if (floor === 1)               return 'floor1';
   if (floor >= 2 && floor <= 4)  return 'floor2';
   if (floor >= 5 && floor <= 6)  return 'floor3';
@@ -394,6 +408,7 @@ function battleTrack() {
   if (DS && DS.dungeon === 'The Infernal Descent')   return 'infernal-battle';
   if (DS && DS.dungeon === 'The Abyssal Deep')         return 'abyssal-battle';
   if (DS && DS.dungeon === 'The Shadow World')         return 'shadow-battle';
+  if (DS && DS.dungeon === 'The Sky Ruins')            return 'skyruins-battle';
   return 'battle';
 }
 
@@ -467,7 +482,11 @@ function loadAudio() {
    'sfx-enemy-horror','sfx-enemy-beast','sfx-enemy-demon','sfx-enemy-leviathan','sfx-enemy-shadow',
    'sfx-boss-undead','sfx-boss-fire','sfx-boss-ice','sfx-boss-aquatic',
    'sfx-boss-horror','sfx-boss-beast','sfx-boss-demon','sfx-boss-leviathan','sfx-boss-shadow',
-   'sfx-ach-gold','sfx-ach-silver','sfx-ach-special'];
+   'sfx-ach-gold','sfx-ach-silver','sfx-ach-special',
+   // The Sky Ruins (12.3)
+   'sfx-poison-bubble','sfx-poison-tick','sfx-flask-shatter','sfx-spore-burst','sfx-spore-cough',
+   'sfx-vine-creak','sfx-leaves-rustle','sfx-plant-hiss','sfx-wind-gust','sfx-wings-glide','sfx-fall',
+   'sfx-gadget-build','sfx-gadget-click','sfx-steam-vent','sfx-goliath-stomp','sfx-boss-bloom-roar'];
 
   // Most sfx are hosted as .mp3 — these specific ones are .wav on the host.
   var SFX_WAV_NAMES = ['sfx-ach-special', 'sfx-footstep'];
@@ -763,6 +782,7 @@ function getAmbientKey() {
   if (DS.dungeon === 'The Infernal Descent')   return 'infernal';
   if (DS.dungeon === 'The Abyssal Deep')         return 'abyssal';
   if (DS.dungeon === 'The Shadow World')         return 'shadow';
+  if (DS.dungeon === 'The Sky Ruins')            return 'sky';
   return 'crypt';
 }
 

@@ -1357,14 +1357,16 @@ function pickDiff(el) {
   document.querySelectorAll('.diff-card').forEach(function(c) { c.classList.remove('sel'); c.setAttribute('aria-checked','false'); });
   el.classList.add('sel'); el.setAttribute('aria-checked','true'); NC.diff = el.dataset.diff;
   // Sync slider display
-  var names = {Wanderer:'3 lives · Normal damage',Ironblood:'1 life · +10% damage',Condemned:'1 life · +25% damage',Forsaken:'1 life · +50% damage',Nightmare:'1 life · Nightmare enemies',Insane:'1 life · Sanity bar',Endless:'Infinite floors · No victory'};
+  var names = {Wanderer:'3 lives · Normal damage',Ironblood:'1 life · +10% damage',Condemned:'1 life · +25% damage',Forsaken:'1 life · +50% damage',Nightmare:'1 life · Nightmare enemies',Insane:'1 life · Sanity bar',Impossible:'1 life · No revives · Everything stronger',Endless:'Infinite floors · No victory'};
   var sn = document.getElementById('diff-slider-name'); if(sn) sn.textContent = NC.diff;
   var sd = document.getElementById('diff-slider-desc'); if(sd) sd.textContent = names[NC.diff]||'';
-  say(NC.diff + ' difficulty selected.');
+  say(NC.diff === 'Impossible'
+    ? 'Impossible. One life. Everything is stronger. Most players will not finish a single floor. Are you sure?'
+    : NC.diff + ' difficulty selected.');
   updateSummary();
 }
 
-var _DIFFS = ['Wanderer','Ironblood','Condemned','Forsaken','Nightmare','Insane','Endless'];
+var _DIFFS = ['Wanderer','Ironblood','Condemned','Forsaken','Nightmare','Insane','Impossible','Endless'];
 var _diffIdx = 0;
 function stepDiff(dir) {
   _diffIdx = (_diffIdx + dir + _DIFFS.length) % _DIFFS.length;
