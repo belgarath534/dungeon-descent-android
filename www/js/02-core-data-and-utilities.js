@@ -185,6 +185,12 @@ var _AUDIO_END  = '';
 var _AUDIO_LOCAL = 'audio/';
 var _AUDIO_R2 = 'https://pub-a22a05b8dcb64f86b6bbb814578b93e4.r2.dev/';
 
+// 12.2.1: the FesliyanStudios boss tracks (YouTube copyright claims) were
+// replaced with CC0 / CC-BY music under the same file names.
+var _AUDIO_VERSIONS = {
+  'music-boss.mp3': 2, 'music-frosthold-boss.mp3': 2,
+  'music-infernal-boss.mp3': 2, 'music-time-descender.mp3': 2
+};
 function _audioUrl(filename) {
   // The iOS app bundles every track locally (www/audio/, synced into the
   // native app by `npx cap sync ios`) so the game has real audio with zero
@@ -192,7 +198,10 @@ function _audioUrl(filename) {
   // The web build at dungeon-descent.org doesn't ship 275MB of audio to
   // every visitor, so it keeps streaming from Cloudflare R2 as before.
   if (window.Capacitor) return _AUDIO_LOCAL + filename;
-  return _AUDIO_R2 + filename;
+  // Replaced files keep their names, so browsers that saved the old copy kept
+  // playing it. A new ?v= makes them fetch the new one.
+  var v = _AUDIO_VERSIONS[filename];
+  return _AUDIO_R2 + filename + (v ? '?v=' + v : '');
 }
 
 var TRACK_FILES = {
