@@ -1567,18 +1567,20 @@ var _ddSocialLoginInitialized = false;
 async function _ddInitSocialLogin() {
   if (_ddSocialLoginInitialized) return;
   console.log('[DD Cloud] Initializing SocialLogin...');
-  await _ddWithTimeout(window.Capacitor.Plugins.SocialLogin.initialize({
+  var cfg = {
     google: {
       webClientId: '109323203666-sj667ngkft9jr7h85c5338bvllhl3hoq.apps.googleusercontent.com',
       iOSClientId: '109323203666-sj667ngkft9jr7h85c5338bvllhl3hoq.apps.googleusercontent.com',
       mode: 'online',
     },
-    // Native iOS Sign In with Apple doesn't need a clientId here — it
-    // authenticates against the app's own bundle ID once the capability
-    // is enabled in Xcode, not against a separate Services ID the way
-    // the web OAuth flow does.
-    apple: {},
-  }), 15000, 'SocialLogin.initialize');
+  };
+  // Native iOS Sign In with Apple doesn't need a clientId here — it
+  // authenticates against the app's own bundle ID. On Android, Apple sign-in
+  // is a web flow that needs a redirect URL, and an empty apple config made
+  // initialize() fail ("apple.android.redirectUrl is null or empty"), which
+  // broke Google sign-in too. So Apple is set up on iOS only.
+  if (Capacitor.getPlatform() === 'ios') cfg.apple = {};
+  await _ddWithTimeout(window.Capacitor.Plugins.SocialLogin.initialize(cfg), 15000, 'SocialLogin.initialize');
   _ddSocialLoginInitialized = true;
   console.log('[DD Cloud] SocialLogin initialized');
 }
@@ -1719,6 +1721,11 @@ async function accountAppleLogin() {
   if (!window._fbAuth) {
     if (err) { err.style.color='#ff4444'; err.textContent = 'Cloud not ready. Check connection.'; }
     say('Cloud not available. Check your internet connection.');
+    return;
+  }
+  if (window.Capacitor && typeof Capacitor.getPlatform === 'function' && Capacitor.getPlatform() === 'android') {
+    if (err) { err.style.color='#ff4444'; err.textContent = 'Sign in with Apple is not available on Android. Use Google or email.'; }
+    say('Sign in with Apple is not available on Android. Use Google or email instead.');
     return;
   }
   if (isCapacitorNative) {
@@ -2072,3 +2079,14 @@ function toggleICloudBackup(on) {
   }
 }
 
+
+// Sign in with Apple isn't offered in the Android app (Google and email are).
+(function() {
+  function hideAppleOnAndroid() {
+    if (!(window.Capacitor && typeof Capacitor.getPlatform === 'function' && Capacitor.getPlatform() === 'android')) return;
+    var b = document.getElementById('btn-apple-login');
+    if (b) b.style.display = 'none';
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hideAppleOnAndroid);
+  else hideAppleOnAndroid();
+})();
