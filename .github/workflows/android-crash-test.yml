@@ -50,6 +50,8 @@ jobs:
           disable-animations: true
           script: |
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            # android-crash-test-deny*: notifications turned down for good, as a player who said no.
+            case "${{ github.ref_name }}" in android-crash-test-deny*) adb shell pm revoke com.dungeon.descent android.permission.POST_NOTIFICATIONS; adb shell pm set-permission-flags com.dungeon.descent android.permission.POST_NOTIFICATIONS user-set user-fixed; echo "Notifications denied";; esac
             adb logcat -c
             (adb logcat -v time > logcat.txt &)
             (adb logcat -b events -v time > events.txt &)
