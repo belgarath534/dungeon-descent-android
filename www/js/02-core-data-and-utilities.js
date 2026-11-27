@@ -960,15 +960,23 @@ function goTo(id) {
     keepAwakeOff(); // allow sleep when back at menu
     cancelComebackNotif();
     if (!_notifScheduled) setTimeout(function(){ scheduleAllNotifications(); }, 2000);
-    initGooglePlayGames();
-    initAdMob();
-    initIAP();
-    initStatusBar();
-    initNetwork();
-    initShakeToAttack();
-    initScreenReader();
+    // The phone's native features are set up once per launch. They ran on
+    // every return to the menu: Play Billing and the ad SDK were started
+    // again while running (closing the Android app on the way back to the
+    // menu), and each time another purchase handler (coins given once per
+    // handler), network and back-button listener was added.
+    if (!window._ddNativeInitDone) {
+      window._ddNativeInitDone = true;
+      initGooglePlayGames();
+      initAdMob();
+      initIAP();
+      initStatusBar();
+      initNetwork();
+      initShakeToAttack();
+      initScreenReader();
+      initBackButton(); // handle Android back button properly
+    }
     clearBadge();
-    initBackButton(); // handle Android back button properly
     setTimeout(function(){ updateMenuEnemyCount(); }, 500);
     // Show badge if daily dungeon not completed today
     var _dailySeed = typeof _getDailyDungeonSeed === 'function' ? _getDailyDungeonSeed() : null;

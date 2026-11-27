@@ -749,6 +749,10 @@ function initIAP() {
       console.warn('[DD] CdvPurchase not available');
       return;
     }
+    // Once per launch: registering again added another "approved" handler
+    // (coins awarded once per handler) and restarted Play Billing.
+    if (window._ddIAPStarted) { try { CdvPurchase.store.update(); } catch(e) {} return; }
+    window._ddIAPStarted = true;
     var store = CdvPurchase.store;
     var ProductType = CdvPurchase.ProductType;
     var Platform = getIAPPlatform();
@@ -861,6 +865,8 @@ var _adCooldown = false;
 async function initAdMob() {
   try {
     if (!window.Capacitor || !Capacitor.Plugins || !Capacitor.Plugins.AdMob) return;
+    if (window._ddAdMobStarted) return; // once per launch
+    window._ddAdMobStarted = true;
     await Capacitor.Plugins.AdMob.initialize({ appId: _ADMOB_APP_ID });
     console.log('[DD] AdMob initialized');
     loadRewardedAd();

@@ -18,6 +18,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const sb = String(await device.shell(`dumpsys meminfo | grep -i "sandboxed_process" | head -3`)).trim();
     return out + (sb ? ' | renderer: ' + sb.replace(/\s+/g, ' ') : '');
   };
+  const pid0 = String(await device.shell(`pidof ${PKG}`)).trim();
+  console.log('App pid:', pid0);
   let webview = await device.webView({ pkg: PKG }, { timeout: 60000 });
   let page = await webview.page();
   page.on('pageerror', (e) => console.log('PAGE ERROR:', e.message));
@@ -67,9 +69,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         await backToMenu();
         await check(`back to menu from "${o.label}"`);
       } catch (e) {
-        if (!(await alive())) { console.log('THE APP CRASHED at: ' + o.label + ' (' + e.message + ')'); process.exit(1); }
-        console.log('  (lost the page: ' + e.message.split('\n')[0] + '; reconnecting)');
-        webview = await device.webView({ pkg: PKG }, { timeout: 30000 }); page = await webview.page();
+        await sleep(3000);
+        const pid = String(await device.shell(`pidof ${PKG}`)).trim();
+        console.log(`THE GAME'S PAGE DIED after "${o.label}" (${e.message.split('\n')[0]}). App pid now: "${pid}" (was ${pid0}).`);
+        process.exit(1);
       }
     }
     // A dungeon run: create a character, walk some rooms and fights, then the menu.
