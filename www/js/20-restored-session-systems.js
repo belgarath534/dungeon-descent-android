@@ -72,9 +72,11 @@ function quitGame() {
       // iOS Capacitor
       try { window.webkit.messageHandlers.close.postMessage('close'); } catch(e) {}
     }
-    if (window.Capacitor) {
-      // Capacitor app
-      try { window.Capacitor.Plugins.App.exitApp(); } catch(e) {}
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+      // Capacitor app. Nothing may run after this: going to the menu here
+      // asked for notification permission after Android had closed the
+      // screen, and that crashed the app on its way out.
+      try { window.Capacitor.Plugins.App.exitApp(); return; } catch(e) {}
     }
     // Web fallback — go to menu
     goTo('menu');

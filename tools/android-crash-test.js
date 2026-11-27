@@ -28,9 +28,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   console.log('Started. Memory:', await mem());
 
   // Dismiss first-launch popups.
+  // Only visible popups, and never a button that quits or exits: the pause
+  // menu's "✕ Quit Game" closed the app on purpose and looked like a crash.
   const closePopups = () => page.evaluate(() => {
     document.querySelectorAll('.overlay.active button, .ov.active button, [role=dialog] button').forEach((b) => {
-      if (/close|continue|ok|not now|got it|skip|✕/i.test(b.textContent)) try { b.click(); } catch (e) {}
+      const t = (b.textContent || '') + ' ' + (b.getAttribute('aria-label') || '');
+      if (!b.offsetParent || /quit|exit|leave|abandon|delete|sign out/i.test(t)) return;
+      if (/close|continue|ok|not now|got it|skip|✕/i.test(t)) try { b.click(); } catch (e) {}
     });
     document.getElementById('dd-choice-modal')?.remove();
   }).catch(() => {});
