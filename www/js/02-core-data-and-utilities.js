@@ -682,7 +682,13 @@ try {
   document.addEventListener('touchstart', function() { _lastTouchAt = Date.now(); }, { passive: true, capture: true });
   document.addEventListener('touchmove', function() { _lastTouchAt = Date.now(); }, { passive: true, capture: true });
 } catch (e) {}
+// No hover sounds on phones, tablets or the Android app: TalkBack's explore
+// by touch sends hover events (not touches) as a finger moves over the menu,
+// so every button crossed played a click, and they piled up until the app
+// crashed (Galaxy S25 report).
+var _noHoverSounds = !!(window.Capacitor || (window.matchMedia && (matchMedia('(hover: none)').matches || matchMedia('(pointer: coarse)').matches)));
 function sfxHover(e) {
+  if (_noHoverSounds) return;
   var t = e.target && e.target.closest ? e.target.closest('.menu-btn') : null;
   if (!t) return;
   var now = Date.now();
