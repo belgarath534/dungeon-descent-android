@@ -36,6 +36,26 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   }).catch(() => {});
   await closePopups();
 
+  // Diagnostic (DIAG=1): each native setup on its own, to see which one
+  // tears down the game's screen.
+  if (process.env.DIAG) {
+    for (const fn of ['initAdMob', 'initGooglePlayGames', 'initIAP', 'initNetwork', 'initBackButton', 'initStatusBar', 'initScreenReader']) {
+      try {
+        console.log(`DIAG calling ${fn}()`);
+        await page.evaluate((fn) => { window._ddAdMobStarted = false; window._ddIAPStarted = false; try { window[fn](); } catch (e) { console.error(fn + ': ' + e.message); } }, fn);
+        await sleep(9000);
+        await page.evaluate(() => 1 + 1);
+        console.log(`DIAG ${fn}: the game's screen survived`);
+      } catch (e) {
+        console.log(`DIAG ${fn}: THE GAME'S SCREEN DIED (${e.message.split('\n')[0]})`);
+        await sleep(6000);
+        webview = await device.webView({ pkg: PKG }, { timeout: 60000 }); page = await webview.page();
+        await sleep(8000);
+      }
+    }
+    process.exit(0);
+  }
+
   // Every main-menu button that opens something in the game.
   const options = await page.evaluate(() => Array.from(document.querySelectorAll('#screen-menu button'))
     .map((b, i) => ({ i, label: (b.getAttribute('aria-label') || b.textContent || '').trim().slice(0, 60), onclick: b.getAttribute('onclick') || '' }))

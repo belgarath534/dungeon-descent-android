@@ -52,11 +52,11 @@ jobs:
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb logcat -c
             (adb logcat -v time > logcat.txt &)
-            node tools/android-crash-test.js > drive.txt 2>&1; echo "exit $?" >> drive.txt; cat drive.txt
+            DIAG=${{ startsWith(github.ref_name, 'android-crash-test-diag') && '1' || '' }} node tools/android-crash-test.js > drive.txt 2>&1; echo "exit $?" >> drive.txt; cat drive.txt
             sleep 3
             adb shell dumpsys meminfo com.dungeon.descent > meminfo.txt || true
             adb shell dumpsys activity exit-info com.dungeon.descent > exit-info.txt || true
-            grep -E "FATAL|AndroidRuntime|E/chromium|cr_|Render.*(gone|crash|kill)|lowmemorykiller|lmkd|Kill|died|SIGSEGV|SIGABRT|Abort|Out of memory|OutOfMemory|E/Capacitor|Billing|AdMob|Ads|GameConnect|PlayGames|ActivityManager.*dungeon" logcat.txt | tail -150 > crash-lines.txt || true
+            grep -E "FATAL|AndroidRuntime|E/chromium|cr_|Render.*(gone|crash|kill)|lowmemorykiller|lmkd|Kill|died|SIGSEGV|SIGABRT|Abort|Out of memory|OutOfMemory|E/Capacitor|Billing|AdMob|Ads|GameConnect|PlayGames|ActivityManager.*dungeon|ActivityTaskManager|wm_on_|START u0|onDestroy|Config" logcat.txt | tail -150 > crash-lines.txt || true
             echo "===== crash-related logcat ====="; cat crash-lines.txt || true
             echo "===== exit info ====="; head -60 exit-info.txt || true
             grep -q "^exit 0" drive.txt
