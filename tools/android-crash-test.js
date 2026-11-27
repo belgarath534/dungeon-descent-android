@@ -39,17 +39,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // Diagnostic (DIAG=1): each native setup on its own, to see which one
   // tears down the game's screen.
   if (process.env.DIAG) {
-    for (const fn of ['initAdMob', 'initGooglePlayGames', 'initIAP', 'initNetwork', 'initBackButton', 'initStatusBar', 'initScreenReader']) {
+    for (const fn of ['(nothing, just wait)', '(nothing, just wait)', 'initAdMob', 'initGooglePlayGames', 'initIAP', 'initNetwork', 'initBackButton', 'initStatusBar', 'initScreenReader']) {
       try {
         console.log(`DIAG calling ${fn}()`);
-        await page.evaluate((fn) => { window._ddAdMobStarted = false; window._ddIAPStarted = false; try { window[fn](); } catch (e) { console.error(fn + ': ' + e.message); } }, fn);
-        await sleep(9000);
+        console.log(`DIAG ${new Date().toISOString()} before ${fn}`);
+        await page.evaluate((fn) => { window._ddAdMobStarted = false; window._ddIAPStarted = false; if (window[fn]) try { window[fn](); } catch (e) { console.error(fn + ': ' + e.message); } }, fn);
+        await sleep(fn.startsWith('(') ? 20000 : 9000);
         await page.evaluate(() => 1 + 1);
         console.log(`DIAG ${fn}: the game's screen survived`);
       } catch (e) {
         console.log(`DIAG ${fn}: THE GAME'S SCREEN DIED (${e.message.split('\n')[0]})`);
-        await sleep(6000);
-        webview = await device.webView({ pkg: PKG }, { timeout: 60000 }); page = await webview.page();
+        await sleep(8000);
+        await device.shell(`am start -n ${PKG}/.MainActivity`);
+        await sleep(8000);
+        const views = await device.webViews();
+        webview = views[views.length - 1] || await device.webView({ pkg: PKG }, { timeout: 60000 });
+        page = await webview.page();
         await sleep(8000);
       }
     }
