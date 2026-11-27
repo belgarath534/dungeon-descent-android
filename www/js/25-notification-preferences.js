@@ -110,13 +110,29 @@ function legacyVibe(pattern) {
 // CAPACITOR — LOCAL NOTIFICATIONS
 //═════════════════════════════
 var _notifScheduled = false;
+var _notifAsked = false;   // asked for permission this launch (asked at most once)
+var _notifAsking = null;   // a check or request in progress
 
+// Checks first and asks at most once per launch, never after a "no".
+// It used to ask every time the main menu opened: on Android, when the player
+// had turned notifications down, that permission request on each return to
+// the menu crashed the app ("unregistered ActivityResultLauncher").
 async function requestNotificationPermission() {
-  try {
-    if (!window.Capacitor || !Capacitor.Plugins || !Capacitor.Plugins.LocalNotifications) return false;
-    var perm = await Capacitor.Plugins.LocalNotifications.requestPermissions();
-    return perm && perm.display === 'granted';
-  } catch(e) { return false; }
+  if (_notifAsking) return _notifAsking;
+  _notifAsking = (async function() {
+    try {
+      if (!window.Capacitor || !Capacitor.Plugins || !Capacitor.Plugins.LocalNotifications) return false;
+      var LN = Capacitor.Plugins.LocalNotifications;
+      var perm = await LN.checkPermissions();
+      if (perm && perm.display === 'granted') return true;
+      if (perm && perm.display === 'denied') return false;
+      if (_notifAsked) return false;
+      _notifAsked = true;
+      perm = await LN.requestPermissions();
+      return !!(perm && perm.display === 'granted');
+    } catch(e) { return false; }
+  })();
+  try { return await _notifAsking; } finally { _notifAsking = null; }
 }
 
 // ── NOTIFICATION PREFERENCES ──
