@@ -35,6 +35,7 @@
   .msg details { display: inline-block; margin-left: 8px; }
   .msg details summary { cursor: pointer; color: var(--dim); font-size: .9rem; }
   .msg details .row { margin-top: 6px; }
+  .msg.focus { outline: 2px solid var(--gold); border-radius: 6px; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   [hidden] { display: none !important; }
 </style>
@@ -94,8 +95,9 @@
     <nav aria-label="Chat sections">
       <button data-tab="channels">Channels</button>
       <button data-tab="dms">Messages</button>
-      <button data-tab="groups">Groups</button>
-      <button data-tab="settings">Settings</button>
+      <button data-tab="activity">Activity</button>
+      <button data-tab="community">Community</button>
+      <button data-tab="profile">Profile</button>
     </nav>
     <p id="banned-note" class="warn" hidden>You've been banned from chat. You can read, but not post.</p>
 
@@ -113,11 +115,9 @@
         <input id="dm-name" placeholder="Username to message" style="flex:1">
         <button type="submit">New message</button>
       </form>
+      <h3>Private messages</h3>
       <ul class="list" id="dm-list"></ul>
-    </div>
-
-    <div id="tab-groups" hidden>
-      <h2>Groups</h2>
+      <h3>Groups</h3>
       <form id="new-group" class="row card">
         <label for="group-name" class="sr-only">New group name</label>
         <input id="group-name" placeholder="New group name" style="flex:1" maxlength="40">
@@ -126,7 +126,15 @@
       <ul class="list" id="group-list"></ul>
     </div>
 
-    <div id="tab-settings" hidden></div>
+    <div id="tab-activity" hidden>
+      <div class="row"><h2 style="margin:0">Activity</h2><button id="clear-activity" hidden>Clear all</button></div>
+      <p class="muted">Mentions of you, replies to you and reactions to your messages. Each one opens the conversation at that message.</p>
+      <ul class="list" id="activity-list"></ul>
+    </div>
+
+    <div id="tab-community" hidden></div>
+
+    <div id="tab-profile" hidden></div>
 
     <!-- One conversation -->
     <div id="room" hidden>
@@ -210,7 +218,7 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
   const BAD = /\b(fuck\w*|motherfuck\w*|shit|shits|shitty|shitting|bullshit|bitch\w*|cunt\w*|nigg\w*|fag|fags|faggot\w*|retard\w*|whore\w*|slut\w*|dick|dicks|cock|cocks|pussy|pussies|ass|asshole\w*|bastard\w*|piss|pissed|pissing)\b/i;
 
   const S = { user: null, member: null, channels: [], dms: [], groups: [], blocked: {}, banned: false, tab: 'channels',
-              room: null, roomUnsub: null, messages: [], replyTo: null, unsubs: [], creating: false };
+              room: null, roomUnsub: null, messages: [], replyTo: null, unsubs: [], creating: false, activity: [], focus: null };
   const isDev = () => S.user && S.user.uid === DEV;
   const isMod = () => isDev() || (S.member && S.member.mod === true);
   const isTester = () => isMod() || (S.member && S.member.tester === true);
@@ -361,6 +369,11 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
       renderAll();
       if (S.room && S.room.kind === 'group') { const g = S.groups.find(x => x.id === S.room.id); if (g) { S.room = g; renderGroupInfo(); } else { say('You are no longer in this group.'); closeRoom(); } }
     }, () => {}));
+    S.unsubs.push(db.collection('chat_members').doc(uid).collection('activity').orderBy('ts', 'desc').limit(100).onSnapshot(s => {
+      S.activity = s.docs.map(d => Object.assign({ id: d.id }, d.data(), { date: d.data().ts && d.data().ts.toDate ? d.data().ts.toDate() : new Date() }));
+      if (S.tab === 'activity' && !S.room) setPref('activitySeen', Date.now());
+      renderAll();
+    }, () => {}));
     S.unsubs.push(db.collection('chat_members').doc(uid).collection('blocks').onSnapshot(s => {
       S.blocked = {}; s.docs.forEach(d => { S.blocked[d.id] = d.data().name || 'Player'; });
       renderAll(); renderMessages(false);
@@ -390,14 +403,27 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
   document.addEventListener('visibilitychange', () => { if (S.member) beat(); });
 
   // ── Lists ──
-  document.querySelectorAll('nav button').forEach(b => b.onclick = () => { closeRoom(); S.tab = b.dataset.tab; renderAll(); });
+  document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+    closeRoom();
+    if (S.tab === 'activity') setPref('activitySeen', Date.now());
+    S.tab = b.dataset.tab;
+    if (S.tab === 'activity') { S.seenAtOpen = pref('activitySeen', 0); setPref('activitySeen', Date.now()); }
+    renderAll();
+    if (S.tab === 'community') renderCommunity();
+    if (S.tab === 'profile') renderProfileTab();
+  });
   function renderAll() {
     if ($('app').hidden) return;
+    const newActivity = S.activity.filter(a => !S.blocked[a.fromUid] && a.date.getTime() > pref('activitySeen', 0)).length;
+    const dmNew = S.dms.filter(r => !S.blocked[r.other] && isNew(r)).length + S.groups.filter(isNew).length;
     document.querySelectorAll('nav button').forEach(b => {
       if (b.dataset.tab === S.tab && !S.room) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      const base = { channels: 'Channels', dms: 'Messages', activity: 'Activity', community: 'Community', profile: 'Profile' }[b.dataset.tab];
+      const n = b.dataset.tab === 'activity' ? newActivity : b.dataset.tab === 'dms' ? dmNew : 0;
+      b.textContent = n ? base + ' (' + n + ' new)' : base;
     });
     $('banned-note').hidden = !S.banned;
-    for (const t of ['channels', 'dms', 'groups', 'settings']) $('tab-' + t).hidden = !!S.room || S.tab !== t;
+    for (const t of ['channels', 'dms', 'activity', 'community', 'profile']) $('tab-' + t).hidden = !!S.room || S.tab !== t;
     $('room').hidden = !S.room;
     $('dev-channel-tools').hidden = !isDev();
     const ch = $('channel-list'); ch.replaceChildren();
@@ -420,14 +446,58 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
     }
     if (!S.channels.length) ch.append(el('li', { text: 'Loading channels…' }));
     const dl = $('dm-list'); dl.replaceChildren();
-    for (const r of S.dms.filter(r => !S.blocked[r.other])) dl.append(el('li', {}, el('button', { class: 'open', text: r.title, onclick: () => openRoom(r) })));
+    for (const r of S.dms.filter(r => !S.blocked[r.other])) dl.append(el('li', {}, el('button', { class: 'open', text: r.title + (isNew(r) ? ', new' : ''), onclick: () => openRoom(r) })));
     if (!S.dms.length) dl.append(el('li', { class: 'muted', text: 'No private messages yet. Type a username above, or use "Message privately" on someone\'s message.' }));
     const gl = $('group-list'); gl.replaceChildren();
     for (const g of S.groups) { const n = Object.keys(g.members).length;
-      gl.append(el('li', {}, el('button', { class: 'open', text: g.title + ', ' + n + (n === 1 ? ' person' : ' people'), onclick: () => openRoom(g) }))); }
+      gl.append(el('li', {}, el('button', { class: 'open', text: g.title + (isNew(g) ? ', new' : '') + ', ' + n + (n === 1 ? ' person' : ' people'), onclick: () => openRoom(g) }))); }
     if (!S.groups.length) gl.append(el('li', { class: 'muted', text: 'No groups yet. Make one above, then add people by their username.' }));
-    if (S.tab === 'settings' && !S.room) renderSettings();
+    if (S.tab === 'activity' && !S.room) renderActivity();
   }
+  // New in a private message or group: a message after you last opened it (this browser).
+  function isNew(r) {
+    const read = pref('read', {})[r.path] || (S.member.createdAt && S.member.createdAt.toDate ? S.member.createdAt.toDate().getTime() : 0);
+    return !!r.lastAt && r.lastAt.getTime() > read + 1000;
+  }
+  function markRead(r) { const m = pref('read', {}); m[r.path] = Date.now(); setPref('read', m); }
+
+  // ── Activity ──
+  function activityHeadline(a, spoken) {
+    const e = spoken ? (EMOJI_NAMES[a.emoji] || a.emoji) : a.emoji;
+    if (a.type === 'mention') return a.from + ' mentioned you in ' + a.where;
+    if (a.type === 'reply') return a.kind === 'dm' ? a.from + ' replied to you' : a.from + ' replied to you in ' + a.where;
+    return a.from + ' reacted ' + e + ' to your message' + (a.kind === 'dm' ? '' : ' in ' + a.where);
+  }
+  function roomFor(kind, id) {
+    if (kind === 'channel') { const c = S.channels.find(x => x.id === id); if (!c || (c.testersOnly && !isTester())) return null;
+      return { kind: 'channel', id: c.id, title: c.name, topic: c.topic, path: 'chat_channels/' + c.id, canPost: !c.modsPost || isMod() }; }
+    if (kind === 'dm') return S.dms.find(x => x.id === id) || null;
+    if (kind === 'group') return S.groups.find(x => x.id === id) || null;
+    return null;
+  }
+  function renderActivity() {
+    const list = $('activity-list'); list.replaceChildren();
+    const shown = S.activity.filter(a => !S.blocked[a.fromUid]);
+    $('clear-activity').hidden = !shown.length;
+    if (!shown.length) list.append(el('li', { class: 'muted', text: 'Nothing yet. When someone mentions you with @' + S.member.username + ', replies to you or reacts to your message, it shows up here.' }));
+    const seen = S.seenAtOpen || 0;
+    for (const a of shown) {
+      const fresh = a.date.getTime() > seen;
+      const btn = el('button', { class: 'open', 'aria-label': (fresh ? 'New. ' : '') + activityHeadline(a, true) + (a.text ? ': ' + a.text : '') + '. ' + ago(a.date),
+        onclick: () => { const r = roomFor(a.kind, a.room); if (!r) { say("That conversation isn't available anymore."); return; } openRoom(r, a.mid); } },
+        el(fresh ? 'strong' : 'span', { text: activityHeadline(a, false) }), el('br'),
+        el('span', { class: 'muted', text: (a.text ? '“' + a.text + '” ' : '') + ago(a.date) }));
+      list.append(el('li', {}, btn, el('div', { class: 'row' },
+        el('button', { text: 'View ' + a.from + "'s profile", onclick: () => showProfileHere(a.fromUid, $('activity-list')) }),
+        el('button', { text: 'Remove', 'aria-label': 'Remove: ' + activityHeadline(a, true), onclick: () => db.collection('chat_members').doc(S.user.uid).collection('activity').doc(a.id).delete().then(() => say('Removed.')) }))));
+    }
+  }
+  $('clear-activity').onclick = async () => {
+    if (!confirm('Clear all activity?')) return;
+    const s = await db.collection('chat_members').doc(S.user.uid).collection('activity').get().catch(() => null);
+    if (s) await Promise.all(s.docs.map(d => d.ref.delete().catch(() => {})));
+    say('Activity cleared.');
+  };
 
   $('new-dm').onsubmit = async (ev) => {
     ev.preventDefault();
@@ -471,9 +541,11 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
   // ── One room ──
   $('back').onclick = () => { closeRoom(); renderAll(); };
   function closeRoom() { if (S.roomUnsub) S.roomUnsub(); S.roomUnsub = null; S.room = null; S.messages = []; S.replyTo = null; }
-  function openRoom(room) {
+  function openRoom(room, focus) {
     closeRoom();
     S.room = Object.assign({ canPost: true }, room);
+    S.focus = focus || null;
+    if (room.kind !== 'channel') markRead(room);
     renderAll();
     $('room-title').textContent = room.kind === 'channel' ? '# ' + room.title : room.title;
     $('room-topic').textContent = room.topic || (room.kind === 'dm' ? 'Private conversation' : room.kind === 'group' ? 'Group chat' : '');
@@ -489,7 +561,13 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
       const list = s.docs.map(d => { const x = d.data(); return { id: d.id, uid: x.uid, username: x.username, text: x.text, date: x.ts && x.ts.toDate(), replyTo: x.replyTo, reactions: x.reactions || {}, pinned: !!x.pinned }; }).reverse();
       const fresh = list.filter(m => !S.messages.some(o => o.id === m.id));
       S.messages = list;
-      renderMessages(true);
+      if (S.room && S.room.kind !== 'channel') markRead(S.room);
+      renderMessages(!S.focus);
+      if (S.focus) {
+        const m = list.find(x => x.id === S.focus), li = document.querySelector('#messages li[data-id="' + S.focus + '"]');
+        if (m && li) { li.classList.add('focus'); li.tabIndex = -1; li.scrollIntoView({ block: 'center' }); li.focus(); say(m.username + ': ' + m.text); }
+        S.focus = null;
+      }
       if (!first) for (const m of fresh) if (m.uid !== S.user.uid && !S.blocked[m.uid]) {
         if (mentionsMe(m)) say(m.username + ' mentioned you: ' + m.text);
         else if (pref('readAloud', true)) say(m.username + ': ' + m.text);
@@ -498,7 +576,7 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
     }, () => say("Couldn't load this conversation."));
     $('profile').hidden = true;
     loadPinned();
-    $('room-title').focus();
+    if (!S.focus) $('room-title').focus();
   }
   async function loadPinned() {
     const box = $('pinned-box');
@@ -510,8 +588,11 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
     $('pinned-list').replaceChildren(...s.docs.map(d => el('li', { text: d.data().username + ': ' + d.data().text })));
     box.hidden = false;
   }
-  async function showProfile(uid) {
+  function showProfile(uid) { return showProfileHere(uid, null); }
+  // In a conversation the profile shows above the messages; elsewhere, after `anchor`.
+  async function showProfileHere(uid, anchor) {
     const box = $('profile');
+    if (anchor) { anchor.before(box); } else if (box.parentElement !== $('room')) { $('pinned-box').before(box); }
     const d = await db.collection('chat_members').doc(uid).get().catch(() => null);
     box.replaceChildren();
     if (!d || !d.exists) { box.append(el('p', { text: "This player isn't in chat anymore." })); box.hidden = false; return; }
@@ -522,13 +603,21 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
     box.append(el('h3', { text: m.username, tabindex: '-1', id: 'profile-name' }),
       el('p', { text: 'Role: ' + role + '. ' + (seen && Date.now() - seen < 150000 ? 'Online now.' : 'Offline.') }),
       el('p', { text: (m.createdAt && m.createdAt.toDate ? 'Joined chat ' + m.createdAt.toDate().toLocaleDateString() + '. ' : '')
-                    + (board && board.exists && board.data().score ? 'High Score ' + Number(board.data().score).toLocaleString() + '.' : '') }));
+                    + (m.favClass ? 'Favorite class: ' + className(m.favClass) + '. ' : '') }));
+    if (m.bio) box.append(el('p', { text: 'About: ' + m.bio }));
+    const [endless, weekly] = await Promise.all([db.collection('tournament/afk-rivals/scores').doc(uid).get().catch(() => null),
+                                                 db.collection('tournament/' + weeklySetup().season + '/scores').doc(uid).get().catch(() => null)]);
+    const stats = [];
+    if (board && board.exists && board.data().score) stats.push('High Score ' + Number(board.data().score).toLocaleString());
+    if (endless && endless.exists && endless.data().score) stats.push('Endless Descent best: floor ' + Number(endless.data().score).toLocaleString());
+    if (weekly && weekly.exists && weekly.data().score) stats.push('Weekly Ladder this week: ' + Number(weekly.data().score).toLocaleString());
+    if (stats.length) box.append(el('p', { text: 'In the game: ' + stats.join('. ') + '.' }));
     const acts = el('div', { class: 'row' });
     if (uid !== S.user.uid) {
       acts.append(el('button', { text: 'Message ' + m.username + ' privately', onclick: () => openDM(uid, m.username) }));
       if (!S.blocked[uid]) acts.append(el('button', { class: 'danger', text: 'Block ' + m.username, onclick: () => block(uid, m.username) }));
     }
-    acts.append(el('button', { text: 'Close profile', onclick: () => { box.hidden = true; $('room-title').focus(); } }));
+    acts.append(el('button', { text: 'Close profile', onclick: () => { box.hidden = true; if (S.room) $('room-title').focus(); } }));
     box.append(acts);
     box.hidden = false;
     $('profile-name').focus();
@@ -538,7 +627,7 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
     box.replaceChildren();
     for (const m of S.messages.filter(m => !S.blocked[m.uid])) {
       const reply = m.replyTo && S.messages.find(o => o.id === m.replyTo);
-      const li = el('li', { class: 'msg' });
+      const li = el('li', { class: 'msg', 'data-id': m.id });
       if (reply) li.append(el('div', { class: 'reply', text: 'Replying to ' + reply.username + ': ' + reply.text.slice(0, 80) }));
       li.append(el('span', { class: 'who', text: m.username }), document.createTextNode(': '),
                 el(mentionsMe(m) ? 'strong' : 'span', { text: m.text }),
@@ -553,7 +642,7 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
         onclick: async () => {
           const remove = m.reactions[S.user.uid] === e;
           await db.collection(S.room.path + '/messages').doc(m.id).update(new FieldPath('reactions', S.user.uid), remove ? deleteField() : e)
-            .then(() => say(remove ? 'Reaction removed.' : 'Reacted ' + EMOJI_NAMES[e] + '.')).catch(() => say("Couldn't react."));
+            .then(() => { say(remove ? 'Reaction removed.' : 'Reacted ' + EMOJI_NAMES[e] + '.'); callPush('/react', { kind: S.room.kind, room: S.room.id, mid: m.id }); }).catch(() => say("Couldn't react."));
         } }));
       if (m.uid !== 'hall-of-legends') acts.append(el('button', { text: m.uid === S.user.uid ? 'View your profile' : 'View ' + m.username + "'s profile", onclick: () => showProfile(m.uid) }));
       if (isMod() && S.room.kind === 'channel') acts.append(el('button', { text: m.pinned ? 'Unpin message' : 'Pin message', onclick: async () => {
@@ -616,13 +705,162 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
   // Tells the push server about the message just sent, so people who asked
   // get a notification on their phone (the iPhone app does the same).
   const PUSH_URL = 'https://us-central1-dungeon-descent-fbaf2.cloudfunctions.net/chatPush';
-  async function notifyPush(room) {
+  function notifyPush(room) { return callPush('', { kind: room.kind, room: room.id }); }
+  // "" after a message (notifications, mentions and replies), "/react" after a reaction.
+  async function callPush(path, body) {
     if (/[?&]emulator\b/.test(location.search)) return;
     try {
       const token = await auth.currentUser.getIdToken();
-      await fetch(PUSH_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ kind: room.kind, room: room.id }) });
+      await fetch(PUSH_URL + path, { method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+                                     body: JSON.stringify(body) });
     } catch (e) { /* notifications are best effort */ }
+  }
+
+  // ── Community: events, challenges, leaderboards (the same calendar and seeds as the game) ──
+  const GAUNTLET = ['Crypt of Malachar', 'The Ashbound Wastes', 'Frosthold Abyss', 'The Sunken Archives', 'The Hollow', 'The Whispering Forest'];
+  const MODS = ['Iron Flesh', 'Gold Rush', 'Dry Run', 'Frenzied', 'Boss Summoned', 'Seasoned Ground', 'Stripped', 'Fortune Favors'];
+  const WB_BOSSES = ['The Bone Colossus', 'The Drowned King', 'Mother of Spiders', 'The Ash Wyrm', 'The Hollow Bell', 'The Weeping Statue', 'The Hunger'];
+  const TOURNEY = [['🏛️', 'The Eternal Colossus'], ['⬛', 'The Void Sovereign'], ['👑', 'The Ancient King']];
+  const seeded = (seed) => { const x = Math.sin(seed) * 10000; return x - Math.floor(x); };
+  function weeklySetup(date) {
+    date = date || new Date();
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    d.setDate(d.getDate() - (d.getDay() + 6) % 7 + 3);
+    const y = d.getFullYear(), firstThu = new Date(y, 0, 4);
+    const w = 1 + Math.round(((d - firstThu) / 86400000 - 3 + (firstThu.getDay() + 6) % 7) / 7);
+    const sd = y * 100 + w + 7000000;
+    const m1 = Math.floor(seeded(sd + 1) * MODS.length); let m2 = Math.floor(seeded(sd + 2) * MODS.length);
+    if (m2 === m1) m2 = (m2 + 1) % MODS.length;
+    return { dungeon: GAUNTLET[Math.min(Math.floor(seeded(sd) * GAUNTLET.length), GAUNTLET.length - 1)], mods: [MODS[m1], MODS[m2]],
+             season: 'weekly-' + y + '-W' + (w < 10 ? '0' : '') + w, name: 'Week ' + w };
+  }
+  function wbDay() {
+    const now = new Date(), n = Math.floor(now.getTime() / 86400000), iso = now.toISOString().slice(0, 10);
+    return { season: 'worldboss-' + iso, boss: WB_BOSSES[((n % 7) + 7) % 7], hoursLeft: Math.max(1, Math.ceil((86400000 - Date.now() % 86400000) / 3600000)) };
+  }
+  function tournamentSeason() {
+    const now = new Date(), y = now.getFullYear();
+    const starts = [0, 3, 6, 9].map(m => new Date(y, m, 1));
+    let i = 0; for (let k = 3; k >= 0; k--) if (now >= starts[k]) { i = k; break; }
+    const end = new Date(starts[i].getTime() + 7 * 864e5), active = now >= starts[i] && now < end;
+    const next = i < 3 ? starts[i + 1] : new Date(y + 1, 0, 1);
+    return { key: 'season_' + i + '_' + y, name: ['Winter', 'Spring', 'Summer', 'Autumn'][i] + ' ' + y, active, boss: TOURNEY[i % 3],
+             hoursLeft: active ? Math.ceil((end - now) / 36e5) : 0, daysUntil: active ? 0 : Math.ceil((next - now) / 864e5) };
+  }
+  // The event calendar (js/17-menu-event-banner.js and js/26-events-11-8.js).
+  const EVENT_LABELS = { halloween: '🎃 Halloween', christmas: '🎄 Christmas', thanksgiving: '🦃 Thanksgiving', cincodemayo: '🌮 Cinco de Mayo',
+    july4: '🎆 Fourth of July', ambushday: '⚔️ Ambush Day', xpweekend: '⚡ XP Weekend', voidweek: '🌑 Void Week', bloodmoon: '🔴 Blood Moon',
+    architect: '🏛️ Architect Week', brazil: '🟢 Independencia do Brasil', valentines: "💘 Valentine's Day", friday13: '🔪 Friday the 13th',
+    stpatricks: "☘️ St. Patrick's Day", easter: '🐰 Easter', birthday: '🎂 Dungeon Descent Birthday', muertos: '🌼 Día de los Muertos',
+    mexico: '🇲🇽 Independencia de México', newyear: '🎆 New Year', lunar: '🐉 Lunar New Year', chaos: '🃏 Chaos Day',
+    longestnight: '🌑 The Longest Night', eclipse: '🌘 The Eclipse', nightmarket: '🏮 Night Market', migration: '🐾 Monster Migration' };
+  const LUNAR = { 2025: [1, 29], 2026: [2, 17], 2027: [2, 6], 2028: [1, 26], 2029: [2, 13], 2030: [2, 3], 2031: [1, 23], 2032: [2, 11], 2033: [1, 31], 2034: [2, 19], 2035: [2, 8] };
+  function easterDate(y) {
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    return new Date(y, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
+  }
+  const eclipseDay = (y, m) => ((y * 12 + m) * 7) % 26 + 2;
+  function migrationDay(y, m) { const d = ((y * 31 + m * 11) % 24) + 3, e = eclipseDay(y, m); return Math.abs(d - e) < 2 ? ((d + 5 - 1) % 26) + 2 : d; }
+  function activeEvent(now) {
+    const month = now.getMonth() + 1, day = now.getDate(), dow = now.getDay(), year = now.getFullYear();
+    if (month === 11 && day <= 2) return 'muertos';
+    if (month === 9 && (day === 15 || day === 16)) return 'mexico';
+    if ((month === 12 && day === 31) || (month === 1 && day === 1)) return 'newyear';
+    const l = LUNAR[year];
+    if (l) { const st = new Date(year, l[0] - 1, l[1]), en = new Date(year, l[0] - 1, l[1] + 2); if (now >= st && now < en) return 'lunar'; }
+    if (month === 4 && day === 1) return 'chaos';
+    if (month === 12 && day === 21) return 'longestnight';
+    let base = null;
+    const ea = easterDate(year), eaEnd = new Date(ea); eaEnd.setDate(eaEnd.getDate() + 3);
+    if (month === 10 || (month === 11 && day <= 2)) base = 'halloween';
+    else if (month === 12) base = 'christmas';
+    else if (now >= ea && now < eaEnd) base = 'easter';
+    else if (month === 11 && day >= 22 && day <= 28) base = 'thanksgiving';
+    else if (month === 3 && day >= 14 && day <= 18) base = 'stpatricks';
+    else if (month === 3 && day === 23) base = 'birthday';
+    else if (month === 5 && day === 5) base = 'cincodemayo';
+    else if (month === 9 && day === 7) base = 'brazil';
+    else if (month === 2 && day >= 13 && day <= 15) base = 'valentines';
+    else if (day === 13 && dow === 5) base = 'friday13';
+    else if (month === 7 && day <= 7) base = 'july4';
+    else if (day === 15 && [1, 4, 7, 10].includes(month)) base = 'ambushday';
+    else if (dow === 6 || dow === 0) base = 'xpweekend';
+    else if (dow === 1) base = 'voidweek';
+    else if (day <= 7 && month !== 10 && month !== 12) base = 'bloodmoon';
+    else if (day >= 8 && day <= 14 && month !== 10 && month !== 12) base = 'architect';
+    if (base && !['xpweekend', 'voidweek', 'bloodmoon', 'architect'].includes(base)) return base;
+    const uh = now.getUTCHours();
+    if (now.getUTCDate() === eclipseDay(now.getUTCFullYear(), now.getUTCMonth() + 1) && uh >= 18 && uh < 22) return 'eclipse';
+    const md = migrationDay(year, month);
+    if (day === md || day === md + 1) return 'migration';
+    if (day <= 7 && (dow === 6 || dow === 0)) return 'nightmarket';
+    return base;
+  }
+  function upcomingEvents() {
+    const now = new Date(), cur = activeEvent(now), seen = {}, out = [];
+    let left = 0;
+    for (let d = 1; d < 60; d++) { const t = new Date(now); t.setDate(t.getDate() + d); if (activeEvent(t) === cur) left++; else break; }
+    for (let d = 1; d <= 400; d++) {
+      const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, 12);
+      const ev = activeEvent(t);
+      if (ev && ev !== cur && !seen[ev]) { seen[ev] = 1; out.push({ id: ev, days: d }); }
+    }
+    return { current: cur, daysLeft: left, upcoming: out };
+  }
+  const boardName = (x) => { const n = x.email || x.username || 'Anonymous'; return n.includes('@') ? n.split('@')[0].slice(0, 3) + '***' : n.split(' · ')[0]; };
+  async function loadBoard(path, unit, ul) {
+    ul.replaceChildren(el('li', { class: 'muted', text: 'Loading…' }));
+    const s = await db.collection(path).orderBy('score', 'desc').limit(25).get().catch(() => null);
+    ul.replaceChildren();
+    const rows = s ? s.docs.filter(d => !S.blocked[d.data().uid || d.id]) : [];
+    if (!rows.length) { ul.append(el('li', { class: 'muted', text: s ? 'No scores yet. Be the first!' : "Couldn't load this leaderboard." })); return; }
+    rows.forEach((d, i) => {
+      const x = d.data(), uid = x.uid || d.id, me = uid === S.user.uid, score = Number(x.score || 0).toLocaleString();
+      const text = (i + 1) + '. ' + boardName(x) + (me ? ' (you)' : '') + ', ' + (unit === 'floor' ? 'floor ' + score : score + ' ' + unit) + (x.character ? ', ' + x.character : '');
+      ul.append(el('li', {}, el('button', { class: 'open', text, onclick: async () => {
+        const m = await db.collection('chat_members').doc(uid).get().catch(() => null);
+        if (m && m.exists) showProfileHere(uid, ul); else say(boardName(x) + " isn't in Dungeon Descent Chat yet.");
+      } })));
+    });
+  }
+  function boardBox(title, intro, path, unit) {
+    const ul = el('ul', { class: 'list' });
+    const det = el('details', { class: 'card' }, el('summary', { text: title }), typeof intro === 'string' ? el('p', { class: 'muted', text: intro }) : intro, ul);
+    det.addEventListener('toggle', () => { if (det.open) loadBoard(path, unit, ul); });
+    return det;
+  }
+  async function renderCommunity() {
+    const box = $('tab-community'); box.replaceChildren(el('h2', { text: 'Community' }));
+    const ev = upcomingEvents();
+    const now = el('div', { class: 'card' }, el('h3', { text: 'Happening now' }));
+    now.append(el('p', { text: ev.current ? EVENT_LABELS[ev.current] + ' is running, ' + (ev.daysLeft ? ev.daysLeft + (ev.daysLeft === 1 ? ' more day.' : ' more days.') : 'last day today.') : 'No event is running today.' }));
+    const up = el('ul', { class: 'list' }, ...ev.upcoming.slice(0, 12).map(u => el('li', { text: EVENT_LABELS[u.id] + ': ' + (u.days === 1 ? 'tomorrow' : 'in ' + u.days + ' days') })));
+    now.append(el('details', {}, el('summary', { text: 'Coming up' }), up));
+    const w = weeklySetup(), wb = wbDay(), t = tournamentSeason();
+    const wbIntro = el('p', { class: 'muted', text: wb.boss + '. ' + wb.hoursLeft + ' hours until the next boss.' });
+    box.append(now, el('h3', { text: 'Challenges' }),
+      boardBox('Weekly Ladder, ' + w.name + ': ' + w.dungeon, 'With ' + w.mods.join(' and ') + '. One life. It starts over every Monday.', 'tournament/' + w.season + '/scores', 'points'),
+      boardBox('World Boss: ' + wb.boss, wbIntro, 'tournament/' + wb.season + '/scores', 'damage'),
+      boardBox(t.active ? 'Tournament: ' + t.boss[0] + ' ' + t.boss[1] + ', ' + t.hoursLeft + ' hours left' : 'Tournament: next one in ' + t.daysUntil + ' days',
+               t.active ? t.name : 'Final scores from ' + t.name + '.', 'tournament/' + t.key + '/scores', 'points'),
+      el('h3', { text: 'Leaderboards' }),
+      boardBox('High Score', "Everyone's best High Score total, as uploaded from the game.", 'leaderboard', 'points'),
+      boardBox('Endless Descent', 'The deepest floors reached in Endless Descent.', 'tournament/afk-rivals/scores', 'floor'));
+    const legends = el('div', { class: 'card' }, el('h3', { text: 'Hall of Legends' }));
+    box.append(legends, el('p', {}, el('button', { text: 'Players online', onclick: () => { S.tab = 'channels'; renderAll(); $('online-box').open = true; $('online-count').focus(); } })));
+    const s = await db.collection('chat_channels/hall-of-legends/messages').orderBy('ts', 'desc').limit(5).get().catch(() => null);
+    const posts = s ? s.docs.map(d => d.data()) : [];
+    legends.append(posts.length ? el('ul', { class: 'list' }, ...posts.map(p => el('li', { text: p.text + ' ' + ago(p.ts && p.ts.toDate ? p.ts.toDate() : null) })))
+                                : el('p', { class: 'muted', text: 'No legends yet. Conquer a dungeon in the game to be the first.' }));
+    const room = roomFor('channel', 'hall-of-legends');
+    if (room) legends.append(el('button', { text: 'Open #' + room.title, onclick: () => openRoom(room) }));
+    // The World Boss's shared HP.
+    db.collection('tournament/' + wb.season + '/scores').get().then(q => {
+      const total = q.docs.reduce((a, d) => a + Number(d.data().score || 0), 0), left = Math.max(0, 30000 - total);
+      wbIntro.textContent = left ? wb.boss + ': ' + left.toLocaleString() + ' of 30,000 HP left. ' + wb.hoursLeft + ' hours until the next boss.'
+                                 : wb.boss + ' has fallen today. ' + wb.hoursLeft + ' hours until the next boss.';
+    }).catch(() => {});
   }
 
   // ── Groups ──
@@ -739,8 +977,34 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
   }
 
   // ── Settings ──
-  function renderSettings() {
-    const box = $('tab-settings'); box.replaceChildren();
+  const CLASSES = ['Warrior', 'Monk', 'Assassin', 'Paladin', 'Naturalist', 'Sorcerer', 'Necromancer', 'Berserker', 'Bard', 'Alchemist', 'BloodKnight', 'Druid',
+                   'Warlock', 'DeathKnight', 'Ranger', 'Sentinel', 'Cleric', 'Wizard', 'Elementalist', 'VoidWalker', 'ShadowMage', 'TimeMage', 'Shaman', 'Arcanist'];
+  const className = (c) => c.replace(/([a-z])([A-Z])/g, '$1 $2');
+  function renderProfileTab() {
+    const box = $('tab-profile'); box.replaceChildren();
+    const role = isDev() ? 'Developer' : isMod() ? 'Moderator' : isTester() ? 'Tester' : 'Member';
+    box.append(el('h2', { text: 'Profile' }),
+      el('p', { text: S.member.username + '. ' + role + '.' + (S.member.createdAt && S.member.createdAt.toDate ? ' Joined chat ' + S.member.createdAt.toDate().toLocaleDateString() + '.' : '') }));
+    const bio = el('textarea', { id: 'bio', rows: '3', maxlength: '160' }); bio.value = S.member.bio || '';
+    const count = el('p', { class: 'muted', id: 'bio-count' });
+    const upd = () => { count.textContent = bio.value.length + ' of 160 characters. Everyone in chat can see this.'; };
+    bio.oninput = upd; upd();
+    const cls = el('select', { id: 'fav-class' }, el('option', { value: '', text: 'None' }), ...CLASSES.map(c => el('option', { value: c, text: className(c) })));
+    cls.value = S.member.favClass || '';
+    const msg = el('p', { class: 'warn', role: 'alert' });
+    const form = el('form', { class: 'card' }, el('h3', { text: 'About me' }), el('label', { for: 'bio', text: 'A line or two about you' }), bio, count,
+      el('label', { for: 'fav-class', text: 'Favorite class' }), cls, el('div', { class: 'row', style: 'margin-top:8px' }, el('button', { type: 'submit', text: 'Save profile' })), msg);
+    form.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const b = bio.value.trim();
+      if (BAD.test(b)) { msg.textContent = "About me has a word that isn't allowed here."; say(msg.textContent); return; }
+      try { await db.collection('chat_members').doc(S.user.uid).update({ bio: b, favClass: cls.value }); msg.textContent = ''; say('Profile saved.'); }
+      catch (e) { msg.textContent = "Couldn't save. Check your connection."; say(msg.textContent); }
+    };
+    box.append(form, el('div', { class: 'row' }, el('button', { text: 'See my profile as others do', onclick: (e) => showProfileHere(S.user.uid, e.target.parentElement) })));
+    renderSettings(box);
+  }
+  function renderSettings(box) {
     const role = isDev() ? ', developer' : isMod() ? ', moderator' : isTester() ? ', tester' : '';
     box.append(el('h2', { text: 'Settings' }), el('p', { text: 'Signed in as ' + S.member.username + role }),
                el('p', { class: 'muted', text: 'User ID: ' + S.user.uid }));
@@ -840,7 +1104,7 @@ import { getFirestore, connectFirestoreEmulator, doc, collection, getDoc, getDoc
   }
   async function deleteChatData(uid) {
     const me = db.collection('chat_members').doc(uid);
-    for (const sub of ['blocks', 'private']) {
+    for (const sub of ['blocks', 'private', 'activity']) {
       const s = await me.collection(sub).get().catch(() => null);
       if (s) for (const d of s.docs) await d.ref.delete().catch(() => {});
     }
