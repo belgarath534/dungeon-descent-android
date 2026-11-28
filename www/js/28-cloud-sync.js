@@ -111,11 +111,24 @@ async function csPush(silent) {
   };
   var full = csFull();
   if (full) { data.full = full; data.savedAt = savedAt; data.savedBy = 'web'; }
+  // 12.3: character slots are unlimited, but a cloud save is one record of
+  // at most 1 MB. Warn while there's still room.
+  var bytes = 0;
+  Object.keys(data).forEach(function(k) { if (typeof data[k] === 'string') bytes += new Blob([data[k]]).size; });
+  if (bytes > 850000 && !window._csWarnedSize) {
+    window._csWarnedSize = true;
+    say('Your save is close to the cloud\'s size limit. Delete characters you don\'t play any more, or the cloud backup will stop working.');
+    try { showToast('☁️ Your save is almost too big for the cloud. Delete old characters.', 'gold'); } catch (e) {}
+  }
   try {
     await window._fbDb.collection('saves').doc(user.uid).set(data, { merge: true });
     if (full) DDStore.setItem(CS.lastKey, String(savedAt));
     return true;
-  } catch (e) { console.warn('[sync] upload failed', e); return false; }
+  } catch (e) {
+    console.warn('[sync] upload failed', e);
+    if (bytes > 1000000) say('Your save is too big for the cloud: ' + Math.round(bytes / 1000) + ' KB of 1,000. Delete characters you don\'t play any more, then sync again.');
+    return false;
+  }
 }
 
 function csAsk(data) {

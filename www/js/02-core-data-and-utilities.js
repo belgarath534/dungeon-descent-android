@@ -1249,7 +1249,7 @@ function confirmQuit() {
 //═════════════════
 // CHARACTER STORAGE
 //═════════════════
-var MAX_CHARS = 10;
+var MAX_CHARS = Infinity; // 12.3: unlimited character slots (js/28 warns near the cloud size limit)
 var CHARS = []; // real value hydrated in the DDStore.whenReady() callback further down
 
 // ── GLOBAL GOLD SYSTEM ──
