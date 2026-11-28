@@ -79,6 +79,35 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await sleep(2500);
   };
 
+  // Two new characters, then the app is closed hard half a second later and
+  // reopened: both must still be there (a player's second character went missing).
+  console.log('— Two characters, then close the app —');
+  await page.evaluate(() => {
+    for (const n of ['Save Test One', 'Save Test Two']) {
+      startNewChar();
+      NC.name = n; NC.cls = 'Warrior'; NC.race = 'Human'; NC.prof = 'Thief'; NC.dungeon = 'Crypt of Malachar'; NC.diff = 'Wanderer';
+      finalizeChar();
+    }
+  });
+  console.log('Characters before closing:', (await page.evaluate(() => CHARS.map((c) => c.name))).join(', '));
+  await sleep(500);
+  await device.shell(`am force-stop ${PKG}`);
+  await sleep(3000);
+  await device.shell(`am start -n ${PKG}/.MainActivity`);
+  await sleep(15000);
+  webview = await device.webView({ pkg: PKG }, { timeout: 60000 });
+  page = await webview.page();
+  page.on('pageerror', (e) => console.log('PAGE ERROR:', e.message));
+  await sleep(8000);
+  await closePopups();
+  const names = await page.evaluate(() => CHARS.map((c) => c.name));
+  console.log('Characters after reopening:', names.join(', '));
+  if (!names.includes('Save Test One') || !names.includes('Save Test Two')) {
+    console.log('CHARACTERS LOST after closing the app');
+    process.exit(1);
+  }
+  console.log('Both characters survived closing the app.');
+
   let step = 0;
   const check = async (what) => {
     step++;
