@@ -1424,6 +1424,9 @@ function finalizeChar() {
   _charIdx = CHARS.length - 1;
   applyBackstory(ch);
   saveChars();
+  // Write the new character to storage now, not after the usual short wait,
+  // so closing the game right after creating one can't lose it.
+  try { DDStore.flushNow(); } catch (e) {}
   closeOv('ov-confirm');
   var modeMsg = runMode === 'legacy' ? ' Legacy Mode active.' : ' Classic Run.';
   var spiritMsg = NC.spirit ? ' Spirit: ' + (getSpiritById(NC.spirit) ? getSpiritById(NC.spirit).name : NC.spirit) + '.' : '';
